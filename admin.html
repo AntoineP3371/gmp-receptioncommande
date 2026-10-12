@@ -50,7 +50,7 @@
 </div>
 
 <div class="wrap wide" id="adminview" hidden>
-  <div class="tabs"><button class="tab on" data-tab="cmd">Commandes et réceptions</button><button class="tab" data-tab="four">Fournisseurs courants</button></div>
+  <div class="tabs"><button class="tab on" data-tab="cmd">Commandes et réceptions</button><button class="tab" data-tab="four">Fournisseurs courants</button><button class="tab" data-tab="ope">Opérateurs</button></div>
 
   <section id="p-cmd">
     <div class="stats" id="stats"></div>
@@ -77,6 +77,16 @@
       <div class="actions"><button class="btn" id="savef">💾 Enregistrer la liste</button></div>
     </div>
   </section>
+
+  <section id="p-ope" hidden>
+    <div class="card" style="max-width:760px">
+      <h2>Opérateurs</h2>
+      <p class="note" style="margin-top:0">Affichés en gros boutons sur l'écran de réception. L'opérateur peut aussi saisir un nom à la main (bouton « Autre »).</p>
+      <div class="fchips" id="ochips"></div>
+      <div class="addrow"><input id="newo" placeholder="Ajouter un opérateur (prénom ou nom)…" maxlength="60"><button class="btn" id="addo">Ajouter</button></div>
+      <div class="actions"><button class="btn" id="saveo">💾 Enregistrer la liste</button></div>
+    </div>
+  </section>
 </div>
 
 <script src="config.js"></script>
@@ -86,7 +96,7 @@
 (function () {
   const { esc, fmtDate, toast, demo, PB } = RC;
   const $ = (id) => document.getElementById(id);
-  let token = "", rows = [], fournisseurs = [], byId = {};
+  let token = "", rows = [], fournisseurs = [], operateurs = [], byId = {};
   try { token = sessionStorage.getItem("rc_admin_token") || ""; } catch (e) { /* */ }
 
   // ---------- API protégée (PocketBase) ----------
@@ -214,39 +224,45 @@
     XLSX.writeFile(wb, "receptions-colis-" + new Date().toISOString().slice(0, 10) + ".xlsx");
   };
 
-  // ---------- fournisseurs ----------
-  function drawF() {
-    $("fchips").innerHTML = fournisseurs.map((f, i) => `<span class="fchip">${esc(f)}<button title="Retirer" data-rm="${i}">×</button></span>`).join("") || '<span class="note">Aucun fournisseur : le formulaire utilisera la liste de config.js.</span>';
-  }
-  function addF() {
-    const v = $("newf").value.trim(); if (!v) return;
-    if (!fournisseurs.some((f) => f.toLowerCase() === v.toLowerCase())) fournisseurs.push(v);
-    $("newf").value = ""; drawF(); $("newf").focus();
-  }
-  $("addf").onclick = addF;
-  $("newf").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addF(); } };
-  $("fchips").onclick = (e) => { const b = e.target.closest("[data-rm]"); if (b) { fournisseurs.splice(+b.dataset.rm, 1); drawF(); } };
-  $("savef").onclick = async () => {
-    try {
-      if (demo) RC.demoAdmin.setFournisseurs(fournisseurs);
-      else {
-        const j = await pb("/api/collections/colis_config/records?filter=" + encodeURIComponent("key='main'") + "&perPage=1");
-        const body = JSON.stringify({ data: { fournisseurs } });
-        if (j.items.length) await pb("/api/collections/colis_config/records/" + j.items[0].id, { method: "PATCH", body });
-        else await pb("/api/collections/colis_config/records", { method: "POST", body: JSON.stringify({ key: "main", data: { fournisseurs } }) });
-      }
-      toast("✅ Liste enregistrée.", "ok");
-    } catch (e) { toast(e.message, "err"); }
+  // ---------- listes de configuration (fournisseurs, opérateurs) ----------
+  const LISTS = {
+    f: { get: () => fournisseurs, chips: "fchips", input: "newf", add: "addf", save: "savef", empty: "Aucun fournisseur : le formulaire utilisera la liste de config.js." },
+    o: { get: () => operateurs, chips: "ochips", input: "newo", add: "addo", save: "saveo", empty: "Aucun opérateur : l'écran de réception n'affichera que la saisie libre." },
   };
+  function drawList(k) {
+    const L = LISTS[k];
+    $(L.chips).innerHTML = L.get().map((f, i) => `<span class="fchip">${esc(f)}<button title="Retirer" data-rm="${i}">×</button></span>`).join("") || `<span class="note">${L.empty}</span>`;
+  }
+  function addToList(k) {
+    const L = LISTS[k], v = $(L.input).value.trim(); if (!v) return;
+    if (!L.get().some((f) => f.toLowerCase() === v.toLowerCase())) L.get().push(v);
+    $(L.input).value = ""; drawList(k); $(L.input).focus();
+  }
+  async function saveConfig() {
+    if (demo) RC.demoAdmin.setConfig({ fournisseurs, operateurs });
+    else {
+      const j = await pb("/api/collections/colis_config/records?filter=" + encodeURIComponent("key='main'") + "&perPage=1");
+      const data = { fournisseurs, operateurs };
+      if (j.items.length) await pb("/api/collections/colis_config/records/" + j.items[0].id, { method: "PATCH", body: JSON.stringify({ data }) });
+      else await pb("/api/collections/colis_config/records", { method: "POST", body: JSON.stringify({ key: "main", data }) });
+    }
+  }
+  Object.keys(LISTS).forEach((k) => {
+    const L = LISTS[k];
+    $(L.add).onclick = () => addToList(k);
+    $(L.input).onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addToList(k); } };
+    $(L.chips).onclick = (e) => { const b = e.target.closest("[data-rm]"); if (b) { L.get().splice(+b.dataset.rm, 1); drawList(k); } };
+    $(L.save).onclick = async () => { try { await saveConfig(); toast("✅ Liste enregistrée.", "ok"); } catch (err) { toast(err.message, "err"); } };
+  });
   async function loadF() {
-    try { fournisseurs = (await RC.api.config()).fournisseurs || []; } catch (e) { fournisseurs = []; }
-    drawF();
+    try { const c = await RC.api.config(); fournisseurs = c.fournisseurs || []; operateurs = c.operateurs || []; } catch (e) { fournisseurs = []; operateurs = []; }
+    drawList("f"); drawList("o");
   }
 
   document.querySelector(".tabs").onclick = (e) => {
     const b = e.target.closest("[data-tab]"); if (!b) return;
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t === b));
-    $("p-cmd").hidden = b.dataset.tab !== "cmd"; $("p-four").hidden = b.dataset.tab !== "four";
+    $("p-cmd").hidden = b.dataset.tab !== "cmd"; $("p-four").hidden = b.dataset.tab !== "four"; $("p-ope").hidden = b.dataset.tab !== "ope";
   };
 
   function start() {

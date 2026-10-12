@@ -88,7 +88,7 @@
       if (rows.every((r) => r.mail_envoye)) throw new Error("Les mails de ce lot sont déjà partis.");
       rows.forEach((r) => { r.photo = true; r.mail_envoye = true; }); demoSave(l); return { sent: true, erreur: "" };
     },
-    async config() { return { fournisseurs: lsGet("rc_demo_config", { fournisseurs: window.FOURNISSEURS || [] }).fournisseurs }; },
+    async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [] }; },
     async mine(b) { const e = String(b.email).toLowerCase(); return { items: demoLoad().filter((r) => r.email === e).map(pubOf) }; },
     async cancel(b) {
       const l = demoLoad(), r = l.find((x) => x.id === b.id);
@@ -135,7 +135,7 @@
   const demoAdmin = {
     all: () => demoLoad(),
     remove: (id) => demoSave(demoLoad().filter((r) => r.id !== id)),
-    setFournisseurs: (list) => lsSet("rc_demo_config", { fournisseurs: list }),
+    setConfig: (cfg) => lsSet("rc_demo_config", cfg),
   };
 
   window.RC = { api: demo ? demoApi : pbApi, demo, demoAdmin, PB, esc, lsGet, lsSet, fmtDate, nomComplet, toast };

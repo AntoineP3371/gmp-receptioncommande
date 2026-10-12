@@ -9,14 +9,15 @@ routerAdd("GET", "/colis/list", (e) => {
   return e.json(200, { items: rows.map(L.pub) });
 });
 
-// GET /colis/config : fournisseurs courants (modifiables dans l'espace admin)
+// GET /colis/config : fournisseurs courants et liste des opérateurs (modifiables dans l'espace admin)
 routerAdd("GET", "/colis/config", (e) => {
-  let fournisseurs = [];
+  let fournisseurs = [], operateurs = [];
   try {
     const cfg = JSON.parse($app.findFirstRecordByData("colis_config", "key", "main").getString("data"));
     if (Array.isArray(cfg.fournisseurs)) fournisseurs = cfg.fournisseurs.slice(0, 100).map((f) => String(f).slice(0, 80));
+    if (Array.isArray(cfg.operateurs)) operateurs = cfg.operateurs.slice(0, 100).map((f) => String(f).slice(0, 60));
   } catch (err) { /* pas encore de configuration */ }
-  return e.json(200, { fournisseurs: fournisseurs });
+  return e.json(200, { fournisseurs: fournisseurs, operateurs: operateurs });
 });
 
 // POST /colis/declare : le commandeur déclare une commande attendue

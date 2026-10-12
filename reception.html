@@ -14,6 +14,7 @@
     <div class="searchrow">
       <input id="q" type="search" placeholder="🔍 Rechercher : nom, fournisseur, contenu, n° de commande…" autocomplete="off" inputmode="search">
       <button class="btn ghost" id="clear">Effacer</button>
+      <button class="btn ghost kbtoggle" id="kbtoggle" type="button">⌨</button>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="attendu">À réceptionner <span id="cA"></span></button>
@@ -35,6 +36,7 @@
 <script src="config.js"></script>
 <script src="qrcode.js"></script>
 <script src="app.js"></script>
+<script src="clavier.js"></script>
 <script>
 (function () {
   const { api, esc, lsGet, lsSet, fmtDate, nomComplet, toast } = RC;
@@ -42,6 +44,7 @@
   let items = [], tab = "attendu", fFour = "", fLet = "", q = "";
   const sel = new Map();           // id -> nb_recus
   let form = null;                 // état de la fenêtre de validation
+  let operateurs = [];             // liste des opérateurs (définie dans l'admin)
 
   const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -124,7 +127,8 @@
   function openForm() {
     const picked = items.filter((r) => sel.has(r.id) && r.statut === "attendu");
     if (!picked.length) return;
-    form = { picked, etat: "complete", abime: false, lieu: "", commentaire: "", operateur: lsGet("rc_operateur", ""), err: "" };
+    const memo = lsGet("rc_operateur", "");
+    form = { picked, etat: "complete", abime: false, lieu: "", commentaire: "", operateur: memo, opMode: operateurs.length && !(memo && !operateurs.includes(memo)) ? "list" : "other", err: "" };
     drawForm();
     $("ov").hidden = false;
   }
@@ -152,11 +156,12 @@
       <h3>Commentaire <span class="note" style="text-transform:none">(facultatif)</span></h3>
       <textarea id="com" rows="2" placeholder="Ex. boîte écrasée, il manque la notice…">${esc(f.commentaire)}</textarea>
       <h3>Opérateur <span class="note" style="text-transform:none">(facultatif)</span></h3>
-      <input type="text" id="op" placeholder="Votre prénom" value="${esc(f.operateur)}">
+      ${operateurs.length ? `<div class="choices">${operateurs.map((o) => `<button class="choice ${f.opMode === "list" && f.operateur === o ? "on" : ""}" data-op="${esc(o)}">👤 ${esc(o)}</button>`).join("")}<button class="choice ${f.opMode === "other" ? "on" : ""}" data-opother="1">✏️ Autre…</button></div>` : ""}
+      ${f.opMode === "other" || !operateurs.length ? `<input type="text" id="op" placeholder="Nom de l'opérateur" value="${esc(f.operateur)}" style="margin-top:10px">` : ""}
       ${f.err ? `<div class="err">${esc(f.err)}</div>` : ""}
       <div class="actions"><button class="btn ghost" id="fcancel">Annuler</button><button class="btn" id="fsend">📧 Valider et prévenir</button></div>`;
   }
-  function keepText() { if ($("com")) { form.commentaire = $("com").value; form.operateur = $("op").value; } }
+  function keepText() { if ($("com")) form.commentaire = $("com").value; if ($("op")) form.operateur = $("op").value; }
 
   $("sheet").onclick = async (e) => {
     const b = e.target.closest("button"); if (!b || !form) return;
@@ -165,6 +170,8 @@
     if (d.etat) form.etat = d.etat;
     else if (d.abime != null && d.abime !== "") form.abime = d.abime === "1";
     else if (d.lieu) form.lieu = d.lieu;
+    else if (d.op !== undefined) { form.operateur = form.opMode === "list" && form.operateur === d.op ? "" : d.op; form.opMode = "list"; }
+    else if (d.opother) { if (form.opMode !== "other") form.operateur = ""; form.opMode = "other"; drawForm(); if ($("op")) $("op").focus(); return; }
     else if (d.inc || d.dec) {
       const r = items.find((x) => x.id === (d.inc || d.dec));
       sel.set(r.id, Math.max(1, Math.min(99, sel.get(r.id) + (d.inc ? 1 : -1))));
@@ -229,6 +236,8 @@
     pollTimer = setInterval(poll, 2500);
   }
 
+  api.config().then((c) => { operateurs = c.operateurs || []; }).catch(() => {});
+  Clavier.init({ toggle: $("kbtoggle") });
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée
 })();

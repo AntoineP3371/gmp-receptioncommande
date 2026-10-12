@@ -62,8 +62,10 @@ Vous devez voir `colis.pb.js` et `colis-lib.js` d'un côté, `1791000000_colis.j
 **Pour mettre à jour plus tard** après une modification poussée sur GitHub :
 
 ```bash
-cd ~/colis-depot && git pull && cp -r pb/pb_hooks pb/pb_migrations ~/pocketbase-colis/ && sudo systemctl restart pocketbase-colis
+cd ~/colis-depot && git pull && cp -r pb/pb_hooks pb/pb_migrations ~/pocketbase-colis/
 ```
+
+> PocketBase recharge tout seul les fichiers de `pb_hooks` quand ils changent (aucun redémarrage ni `sudo` nécessaire). Les nouveaux fichiers de `pb_migrations` ne s'appliquent qu'au redémarrage : dans ce cas, arrêtez puis relancez PocketBase (voir l'aide-mémoire).
 
 > Autre méthode (depuis le PC) : `scp -r pb_hooks pb_migrations UTILISATEUR@ADRESSE_DU_PI:~/pocketbase-colis/`, ou WinSCP.
 
@@ -190,6 +192,8 @@ Si le mail n'arrive pas : l'admin affiche « Échec » au survol du statut du ma
 **Si la photo n'apparaît pas dans le mail alors que le mail arrive**, prévenez-moi : c'est la seule partie du serveur que je n'ai pas pu essayer (`pb/pb_hooks/colis-lib.js`).
 
 ## Aide-mémoire
+
+**Sans service système** (cas du `crontab` @reboot) : pour redémarrer PocketBase à la main, `pkill -f "pocketbase serve --http=127.0.0.1:8093"` puis `cd ~/pocketbase-colis && nohup ./pocketbase serve --http=127.0.0.1:8093 >> logs/pb.log 2>&1 &`.
 
 | Action | Commande (sur le Pi) |
 |---|---|

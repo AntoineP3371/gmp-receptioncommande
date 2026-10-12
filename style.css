@@ -28,6 +28,15 @@ button { cursor: pointer; }
 
 /* ---------- Accueil ---------- */
 .home { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; max-width: 880px; margin: 40px auto; padding: 0 18px; }
+/* « Je réceptionne » (écran tactile) : bouton agrandi ; « J'attends » garde sa taille d'origine (428 px) */
+@media (min-width: 1000px) {
+  .home { grid-template-columns: 1fr 428px; max-width: 1280px; }
+  .home a:not(.big) { align-self: center; }
+}
+.home a.big { display: flex; flex-direction: column; justify-content: center; border-color: var(--blue); padding: 70px 36px; min-height: 380px; }
+.home a.big .ico { font-size: 7rem; margin-bottom: 18px; }
+.home a.big b { font-size: 2.4rem; margin-bottom: 12px; }
+.home a.big span.sub { font-size: 1.25rem; }
 .home a { text-decoration: none; color: var(--ink); background: var(--surface); border: 3px solid var(--border); border-radius: 24px; padding: 40px 28px; text-align: center; box-shadow: var(--shadow); transition: transform .12s, border-color .15s; }
 .home a:hover { border-color: var(--blue); transform: translateY(-3px); }
 .home .ico { font-size: 4.2rem; display: block; margin-bottom: 10px; }
@@ -124,3 +133,19 @@ button { cursor: pointer; }
 .qrbox img { width: min(300px, 70vw); height: auto; image-rendering: pixelated; border: 3px solid var(--border); border-radius: 12px; }
 .lotstate { text-align: center; font-weight: 700; padding: 12px; border-radius: 12px; background: var(--orange-light); color: var(--orange); margin: 8px 0; }
 .lotstate.ok { background: var(--green-light); color: var(--green); }
+
+/* ---------- Clavier à l'écran (réception tactile) ---------- */
+#kb { position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; background: #d7dde1; padding: 8px 8px 10px; box-shadow: 0 -6px 24px rgba(0, 0, 0, .3); user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+#kb .kbrow { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+#kb .kbkey { flex: 1 1 0; max-width: 92px; min-height: 54px; border: 0; border-radius: 10px; background: #fff; color: var(--ink); font-size: 1.4rem; font-weight: 600; box-shadow: 0 2px 0 #aab4ba; padding: 0; }
+#kb .kbkey:active { background: var(--blue-light); transform: translateY(1px); box-shadow: none; }
+#kb .kbkey.space { flex: 6 1 0; max-width: none; font-size: 1rem; color: var(--muted); }
+#kb .kbkey.ok { flex: 2 1 0; max-width: 170px; background: var(--blue); color: #fff; box-shadow: 0 2px 0 var(--blue-dark); font-size: 1.1rem; }
+#kb .kbkey.shift, #kb .kbkey.bksp { background: #bcc6cc; max-width: 120px; flex: 1.4 1 0; }
+#kb .kbkey.shift.on { background: var(--blue); color: #fff; }
+body.kb-open { padding-bottom: var(--kbh, 0px); }
+body.kb-open .overlay { bottom: var(--kbh, 0px); }
+body.kb-open .sheet { max-height: 100%; }
+body.kb-open .selbar { bottom: var(--kbh, 0px); }
+.kbtoggle { min-width: 58px; font-size: 1.4rem; padding: 0 14px; opacity: .55; }
+.kbtoggle.on { opacity: 1; background: var(--blue-light); }
