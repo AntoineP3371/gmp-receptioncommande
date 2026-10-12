@@ -46,6 +46,7 @@
   let items = [], tab = "attendu", fFour = "", fLet = "", q = "";
   const sel = new Map();           // id -> nb_recus
   let form = null;                 // état de la fenêtre de validation
+  let lieux = window.LIEUX || [];   // lieux de dépôt : définis dans l'admin, sinon liste de config.js
   let operateurs = [];             // liste des opérateurs (définie dans l'admin)
 
   const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -193,7 +194,7 @@
             <button class="choice bad ${f.abime ? "on" : ""}" data-abime="1">💥 Abîmé</button>
           </div>
           <h3>Mis à disposition à…</h3>
-          <div class="choices">${(window.LIEUX || []).map((l) => `<button class="choice ${f.lieu === l ? "on" : ""}" data-lieu="${esc(l)}">📍 ${esc(l)}</button>`).join("")}</div>
+          <div class="choices">${lieux.map((l) => `<button class="choice ${f.lieu === l ? "on" : ""}" data-lieu="${esc(l)}">📍 ${esc(l)}</button>`).join("")}</div>
           <h3>Opérateur <span class="note" style="text-transform:none">(facultatif)</span></h3>
           ${operateurs.length ? `<div class="choices" id="opbtns">${operateurs.map((o) => `<button class="choice ${f.operateur === o ? "on" : ""}" data-op="${esc(o)}">${RC.emojiOf(o) || "👤"} ${esc(o)}</button>`).join("")}</div>` : ""}
           <input type="text" id="op" placeholder="${operateurs.length ? "Autre nom (saisie libre)" : "Nom de l'opérateur"}" value="${esc(txt)}" style="margin-top:10px">
@@ -291,7 +292,7 @@
     pollTimer = setInterval(poll, 2500);
   }
 
-  api.config().then((c) => { operateurs = c.operateurs || []; RC.setStyles(c.styles, c.fournisseurs); RC.setEmojis(c.emojis); render(); }).catch(() => {});
+  api.config().then((c) => { operateurs = c.operateurs || []; if (c.lieux && c.lieux.length) lieux = c.lieux; RC.setStyles(c.styles, c.fournisseurs); RC.setEmojis(c.emojis); render(); }).catch(() => {});
   Clavier.init({ toggle: $("kbtoggle") });
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée

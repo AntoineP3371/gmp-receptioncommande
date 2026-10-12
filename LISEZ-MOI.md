@@ -44,6 +44,17 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 - **✏️ Renommer** (admin, onglet « Fournisseurs courants ») : change le nom d'un fournisseur dans la liste **et dans toutes les commandes existantes** ; la couleur et le logo suivent. Si le nouveau nom existe déjà, les deux fournisseurs sont **fusionnés** (utile pour corriger une faute de frappe). Les mails déjà envoyés ne changent pas.
 - Cette version ajoute la migration `1791000004_config_logos.js` : **redémarrer PocketBase** après la mise à jour.
 
+## Lieux de dépôt (admin)
+
+- Onglet « Lieux de dépôt » : ajouter, retirer, **✏️ Renommer** (met aussi à jour les réceptions déjà enregistrées ; fusion si le nom existe déjà), puis **Enregistrer la liste**.
+- Ils s'affichent en gros boutons sur l'écran de réception et dans le mail au commandeur. Tant qu'aucune liste n'est enregistrée, la liste de `config.js` est utilisée.
+
+## Mails au commandeur
+
+- Le fournisseur apparaît **en gras**, précédé de son **logo** s'il en a un (le logo est servi par `/colis/logo`, affiché si le logiciel de messagerie charge les images distantes ; le champ « Application URL » de PocketBase doit être renseigné).
+- La date de réception est au format **jj/mm/aaaa à hh:mm**, heure de Paris.
+- Aucun emoji hors ✅ et ⚠️ : certains logiciels de messagerie affichent les autres (📦 📍 💬) en carrés vides.
+
 ## Opérateurs (admin)
 
 - Onglet « Opérateurs » : une ligne par opérateur, comme pour les fournisseurs.

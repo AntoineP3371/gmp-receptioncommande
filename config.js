@@ -4,7 +4,7 @@
 // Exemple une fois l'instance créée : "https://api_colis.gmpbordeaux.fr"
 window.PB_URL = "https://api_colis.gmpbordeaux.fr";
 
-// Lieux de mise à disposition proposés à l'opérateur (modifiez librement cette liste)
+// Lieux de mise à disposition : liste de SECOURS (la liste réelle se règle dans admin.html, onglet « Lieux de dépôt »)
 window.LIEUX = [
   "Accueil du département",
   "Atelier GMP",

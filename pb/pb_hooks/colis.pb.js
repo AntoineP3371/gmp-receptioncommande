@@ -11,12 +11,13 @@ routerAdd("GET", "/colis/list", (e) => {
 
 // GET /colis/config : fournisseurs courants et liste des opérateurs (modifiables dans l'espace admin)
 routerAdd("GET", "/colis/config", (e) => {
-  let fournisseurs = [], operateurs = [], styles = {}, emojis = {};
+  let fournisseurs = [], operateurs = [], lieux = [], styles = {}, emojis = {};
   try {
     const cfg = JSON.parse($app.findFirstRecordByData("colis_config", "key", "main").getString("data"));
     if (Array.isArray(cfg.fournisseurs)) fournisseurs = cfg.fournisseurs.slice(0, 100).map((f) => String(f).slice(0, 80));
     if (Array.isArray(cfg.operateurs)) operateurs = cfg.operateurs.slice(0, 100).map((f) => String(f).slice(0, 60));
     // couleur (#rrggbb) et logo (petite image en data-URL) de chaque fournisseur : on ne renvoie que des valeurs valides
+    if (Array.isArray(cfg.lieux)) lieux = cfg.lieux.slice(0, 40).map((f) => String(f).slice(0, 80));
     // émoticone de chaque opérateur : renvoyé sous forme "u:1F4E6-FE0F" (codes hexadécimaux), décodé par la page
     const em = cfg.emojis || {};
     Object.keys(em).slice(0, 100).forEach((k) => {
@@ -35,7 +36,19 @@ routerAdd("GET", "/colis/config", (e) => {
       if (out.c || out.l) styles[String(k).slice(0, 80)] = out;
     });
   } catch (err) { /* pas encore de configuration */ }
-  return e.json(200, { fournisseurs: fournisseurs, operateurs: operateurs, styles: styles, emojis: emojis });
+  return e.json(200, { fournisseurs: fournisseurs, operateurs: operateurs, lieux: lieux, styles: styles, emojis: emojis });
+});
+
+// GET /colis/logo?n=Fournisseur : image du logo d'un fournisseur (affichée dans les mails)
+routerAdd("GET", "/colis/logo", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const name = L.clean(e.request.url.query().get("n"), 80);
+  const key = L.logoKey(name);
+  if (!key) return e.json(404, { message: "Pas de logo." });
+  const m = String(L.readConfig().styles[key].l).match(/^data:image.(png|jpeg|webp);base64,(.+)$/);
+  if (!m) return e.json(404, { message: "Logo illisible." });
+  e.response.header().set("Cache-Control", "public, max-age=3600");
+  return e.blob(200, "image/" + m[1], L.b64decode(m[2]));
 });
 
 // POST /colis/declare : le commandeur déclare une commande attendue

@@ -89,7 +89,7 @@
       if (rows.every((r) => r.mail_envoye)) throw new Error("Les mails de ce lot sont déjà partis.");
       rows.forEach((r) => { r.photo = true; r.photo_data = dataUrl; r.mail_envoye = true; }); demoSave(l); return { sent: true, erreur: "" };
     },
-    async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [], styles: c.styles || {}, emojis: c.emojis || {} }; },
+    async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [], lieux: c.lieux || [], styles: c.styles || {}, emojis: c.emojis || {} }; },
     async mine(b) { const e = String(b.email).toLowerCase(); return { items: demoLoad().filter((r) => r.email === e).map(pubOf) }; },
     async cancel(b) {
       const l = demoLoad(), r = l.find((x) => x.id === b.id);
@@ -133,7 +133,7 @@
   document.addEventListener("DOMContentLoaded", themeBanner);
 
   // Numéro de version : à changer ICI à chaque nouvelle version, il s'affiche sous le titre de toutes les pages
-  const VERSION = "v0.9";
+  const VERSION = "v0.10";
   document.addEventListener("DOMContentLoaded", () => {
     const h = document.querySelector(".topbar h1");
     if (h) h.insertAdjacentHTML("beforeend", '<span class="ver">' + VERSION + "</span>");

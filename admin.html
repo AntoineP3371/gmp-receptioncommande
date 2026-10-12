@@ -50,7 +50,7 @@
 </div>
 
 <div class="wrap wide" id="adminview" hidden>
-  <div class="tabs"><button class="tab on" data-tab="cmd">Commandes et réceptions</button><button class="tab" data-tab="four">Fournisseurs courants</button><button class="tab" data-tab="ope">Opérateurs</button></div>
+  <div class="tabs"><button class="tab on" data-tab="cmd">Commandes et réceptions</button><button class="tab" data-tab="four">Fournisseurs courants</button><button class="tab" data-tab="ope">Opérateurs</button><button class="tab" data-tab="lieu">Lieux de dépôt</button></div>
 
   <section id="p-cmd">
     <div class="stats" id="stats"></div>
@@ -78,6 +78,16 @@
     </div>
   </section>
 
+  <section id="p-lieu" hidden>
+    <div class="card" style="max-width:none">
+      <h2>Lieux de dépôt</h2>
+      <p class="note" style="margin-top:0">Proposés à l'opérateur quand il valide une réception (« Mis à disposition à… »), et indiqués dans le mail au commandeur. Renommer un lieu met aussi à jour les réceptions déjà enregistrées.</p>
+      <div id="lchips"></div>
+      <div class="addrow"><input id="newl" placeholder="Ajouter un lieu de dépôt…" maxlength="80"><button class="btn" id="addl">Ajouter</button></div>
+      <div class="actions"><button class="btn" id="savel">💾 Enregistrer la liste</button></div>
+    </div>
+  </section>
+
   <section id="p-ope" hidden>
     <div class="card" style="max-width:none">
       <h2>Opérateurs</h2>
@@ -99,7 +109,7 @@
 (function () {
   const { esc, fmtDate, toast, demo, PB } = RC;
   const $ = (id) => document.getElementById(id);
-  let token = "", rows = [], fournisseurs = [], operateurs = [], styles = {}, emojis = {}, byId = {};
+  let token = "", rows = [], fournisseurs = [], operateurs = [], lieux = [], styles = {}, emojis = {}, byId = {};
   try { token = sessionStorage.getItem("rc_admin_token") || ""; } catch (e) { /* */ }
 
   // ---------- API protégée (PocketBase) ----------
@@ -205,13 +215,13 @@
   }
   const who = (r) => (r.nom || "").toUpperCase() + " " + (r.prenom || "") + " — " + (r.fournisseur || "");
   function openEdit(r) {
-    const lieux = [...(window.LIEUX || [])]; if (r.lieu && !lieux.includes(r.lieu)) lieux.unshift(r.lieu);
+    const lieuxChoix = [...lieux]; if (r.lieu && !lieuxChoix.includes(r.lieu)) lieuxChoix.unshift(r.lieu);
     $("edsheet").innerHTML = `<h2>Modifier la réception</h2><p class="note" style="margin-top:0">${esc(who(r))}<br>Les modifications ne renvoient <b>pas</b> de nouveau mail au commandeur.</p>
       <div class="form">
         <div><label for="e-etat">La commande est…</label><select id="e-etat"><option value="complete" ${r.etat === "complete" ? "selected" : ""}>✅ Complète</option><option value="incomplete" ${r.etat === "incomplete" ? "selected" : ""}>⚠️ Incomplète</option></select></div>
         <div><label for="e-nb">Colis reçus</label><input id="e-nb" type="number" min="1" max="99" value="${esc(r.nb_recus || 1)}"></div>
         <div><label for="e-abime">État du colis</label><select id="e-abime"><option value="0" ${!r.abime ? "selected" : ""}>👍 Intact</option><option value="1" ${r.abime ? "selected" : ""}>💥 Abîmé</option></select></div>
-        <div><label for="e-lieu">Mis à disposition à</label><select id="e-lieu">${lieux.map((l) => `<option ${l === r.lieu ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
+        <div><label for="e-lieu">Mis à disposition à</label><select id="e-lieu">${lieuxChoix.map((l) => `<option ${l === r.lieu ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
         <div class="full"><label for="e-op">Opérateur</label><input id="e-op" list="e-ops" value="${esc(r.operateur)}" maxlength="60"><datalist id="e-ops">${operateurs.map((o) => `<option value="${esc(o)}">`).join("")}</datalist></div>
         <div class="full"><label for="e-com">Commentaire</label><input id="e-com" value="${esc(r.commentaire)}" maxlength="300"></div>
       </div>
@@ -269,6 +279,7 @@
   // ---------- listes de configuration (fournisseurs, opérateurs) ----------
   const LISTS = {
     f: { get: () => fournisseurs, chips: "fchips", input: "newf", add: "addf", save: "savef", empty: "Aucun fournisseur : le formulaire utilisera la liste de config.js." },
+    l: { get: () => lieux, chips: "lchips", input: "newl", add: "addl", save: "savel", empty: "Aucun lieu : l'écran de réception utilisera la liste de config.js." },
     o: { get: () => operateurs, chips: "ochips", input: "newo", add: "addo", save: "saveo", empty: "Aucun opérateur : l'écran de réception n'affichera que la saisie libre." },
   };
   function drawF() {
@@ -281,6 +292,36 @@
         <button class="fx" title="Retirer ce fournisseur" data-rm="${i}">×</button></div>`;
     }).join("") || `<span class="note">${LISTS.f.empty}</span>`;
   }
+  function drawL() {
+    $("lchips").innerHTML = lieux.map((l, i) => `<div class="frow"><span class="fprev opill">${esc(l)}</span>
+      <span class="factions"><button class="btn ghost small" data-lre="${i}" title="Renommer ce lieu">✏️ Renommer</button></span>
+      <button class="fx" title="Retirer ce lieu" data-rm="${i}">×</button></div>`).join("") || `<span class="note">${LISTS.l.empty}</span>`;
+  }
+  async function renameL(i) {
+    const old = lieux[i];
+    const nv = (prompt("Nouveau nom du lieu :", old) || "").trim().slice(0, 80);
+    if (!nv || nv === old) return;
+    const dup = lieux.findIndex((f, j) => j !== i && RC.normKey(f) === RC.normKey(nv));
+    const concerned = rows.filter((r) => r.statut === "recu" && RC.normKey(r.lieu) === RC.normKey(old));
+    const target = dup >= 0 ? lieux[dup] : nv;
+    const NL = String.fromCharCode(10);
+    const msg = dup >= 0 ? "« " + lieux[dup] + " » existe déjà." + NL + "Fusionner « " + old + " » avec « " + lieux[dup] + " » ?" : "Renommer « " + old + " » en « " + nv + " » ?";
+    if (!confirm(msg + NL + NL + concerned.length + " réception(s) existante(s) seront aussi mises à jour.")) return;
+    if (dup >= 0) lieux.splice(i, 1); else lieux[i] = nv;
+    try {
+      await saveConfig();
+      for (const r of concerned) await patchRec(r.id, { lieu: target });
+      toast("✅ Lieu renommé (" + concerned.length + " réception" + (concerned.length > 1 ? "s" : "") + " mise" + (concerned.length > 1 ? "s" : "") + " à jour).", "ok");
+      drawL(); load();
+    } catch (e) { toast(e.message, "err"); drawL(); }
+  }
+  $("lchips").onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    const d = b.dataset;
+    if (d.lre !== undefined) { renameL(+d.lre); return; }
+    if (d.rm !== undefined) { lieux.splice(+d.rm, 1); drawL(); }
+  };
+
   function drawO() {
     $("ochips").innerHTML = operateurs.map((o, i) => `<div class="frow orow"><button class="emobtn" data-oe="${i}" title="Choisir un émoticone">${emojis[o] ? esc(emojis[o]) : "＋"}</button>
       <span class="fprev opill">${esc(o)}</span>
@@ -290,6 +331,7 @@
   function drawList(k) {
     if (k === "f") { drawF(); return; }
     if (k === "o") { drawO(); return; }
+    if (k === "l") { drawL(); return; }
     const L = LISTS[k];
     $(L.chips).innerHTML = L.get().map((f, i) => `<span class="fchip">${esc(f)}<button title="Retirer" data-rm="${i}">×</button></span>`).join("") || `<span class="note">${L.empty}</span>`;
   }
@@ -302,10 +344,10 @@
   function cleanEmojis() { const out = {}; operateurs.forEach((o) => { if (emojis[o]) out[o] = emojis[o]; }); return out; }
   function cleanStyles() { const out = {}; fournisseurs.forEach((f) => { if (styles[f] && (styles[f].c || styles[f].l)) out[f] = styles[f]; }); return out; }
   async function saveConfig() {
-    if (demo) RC.demoAdmin.setConfig({ fournisseurs, operateurs, styles: cleanStyles(), emojis: cleanEmojis() });
+    if (demo) RC.demoAdmin.setConfig({ fournisseurs, operateurs, lieux, styles: cleanStyles(), emojis: cleanEmojis() });
     else {
       const j = await pb("/api/collections/colis_config/records?filter=" + encodeURIComponent("key='main'") + "&perPage=1");
-      const data = { fournisseurs, operateurs, styles: cleanStyles(), emojis: cleanEmojis() };
+      const data = { fournisseurs, operateurs, lieux, styles: cleanStyles(), emojis: cleanEmojis() };
       if (j.items.length) await pb("/api/collections/colis_config/records/" + j.items[0].id, { method: "PATCH", body: JSON.stringify({ data }) });
       else await pb("/api/collections/colis_config/records", { method: "POST", body: JSON.stringify({ key: "main", data }) });
     }
@@ -314,7 +356,7 @@
     const L = LISTS[k];
     $(L.add).onclick = () => addToList(k);
     $(L.input).onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addToList(k); } };
-    $(L.chips).onclick = (e) => { const b = e.target.closest("[data-rm]"); if (b) { L.get().splice(+b.dataset.rm, 1); drawList(k); } };
+    if (k !== "l") $(L.chips).onclick = (e) => { const b = e.target.closest("[data-rm]"); if (b) { L.get().splice(+b.dataset.rm, 1); drawList(k); } };
     $(L.save).onclick = async () => { try { await saveConfig(); toast("✅ Liste enregistrée.", "ok"); } catch (err) { toast(err.message, "err"); } };
   });
   // ----- renommer (ou fusionner) un fournisseur : liste, couleur/logo et commandes existantes -----
@@ -420,14 +462,16 @@
   };
 
   async function loadF() {
-    try { const c = await RC.api.config(); fournisseurs = c.fournisseurs || []; operateurs = c.operateurs || []; styles = c.styles || {}; emojis = {}; Object.keys(c.emojis || {}).forEach((k) => { emojis[k] = RC.decodeEmoji(c.emojis[k]); }); } catch (e) { fournisseurs = []; operateurs = []; }
-    drawList("f"); drawList("o");
+    let c0 = null;
+    try { const c = await RC.api.config(); c0 = c; fournisseurs = c.fournisseurs || []; operateurs = c.operateurs || []; styles = c.styles || {}; emojis = {}; Object.keys(c.emojis || {}).forEach((k) => { emojis[k] = RC.decodeEmoji(c.emojis[k]); }); } catch (e) { fournisseurs = []; operateurs = []; }
+    lieux = (typeof c0 !== "undefined" && c0 && c0.lieux && c0.lieux.length) ? c0.lieux.slice() : (window.LIEUX || []).slice();
+    drawList("f"); drawList("o"); drawList("l");
   }
 
   document.querySelector(".tabs").onclick = (e) => {
     const b = e.target.closest("[data-tab]"); if (!b) return;
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t === b));
-    $("p-cmd").hidden = b.dataset.tab !== "cmd"; $("p-four").hidden = b.dataset.tab !== "four"; $("p-ope").hidden = b.dataset.tab !== "ope";
+    $("p-cmd").hidden = b.dataset.tab !== "cmd"; $("p-four").hidden = b.dataset.tab !== "four"; $("p-ope").hidden = b.dataset.tab !== "ope"; $("p-lieu").hidden = b.dataset.tab !== "lieu";
   };
 
   function start() {

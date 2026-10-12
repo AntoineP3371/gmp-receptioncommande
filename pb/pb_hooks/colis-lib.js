@@ -31,26 +31,76 @@ function pub(r) {
   };
 }
 
-function mailHtml(r, hasPhoto) {
+// Date et heure de Paris au format jj/mm/aaaa à hh:mm (calculées à la main : le moteur JS du serveur n'a pas les réglages régionaux)
+function parisDate(iso) {
+  const t = new Date(iso);
+  if (isNaN(t.getTime())) return "";
+  const y = t.getUTCFullYear();
+  const lastSunday = (m) => { const d = new Date(Date.UTC(y, m + 1, 0)); return d.getUTCDate() - d.getUTCDay(); };
+  const debutEte = Date.UTC(y, 2, lastSunday(2), 1);    // dernier dimanche de mars, 01:00 UTC
+  const finEte = Date.UTC(y, 9, lastSunday(9), 1);      // dernier dimanche d'octobre, 01:00 UTC
+  const decalage = t.getTime() >= debutEte && t.getTime() < finEte ? 2 : 1;
+  const p = new Date(t.getTime() + decalage * 3600000);
+  const z = (n) => (n < 10 ? "0" : "") + n;
+  return z(p.getUTCDate()) + "/" + z(p.getUTCMonth() + 1) + "/" + p.getUTCFullYear() + " à " + z(p.getUTCHours()) + ":" + z(p.getUTCMinutes());
+}
+
+// Configuration (fournisseurs, logos…) : fiche "main" de la collection colis_config
+function readConfig() {
+  try { return JSON.parse($app.findFirstRecordByData("colis_config", "key", "main").getString("data")) || {}; } catch (e) { return {}; }
+}
+function normKey(s) {
+  let t = String(s == null ? "" : s);
+  try { t = t.normalize("NFD").replace(/[̀-ͯ]/g, ""); } catch (e) { /* pas de normalisation disponible */ }
+  return t.trim().toLowerCase();
+}
+// Nom exact (dans la configuration) du fournisseur s'il a un logo enregistré, sinon ""
+function logoKey(fournisseur) {
+  const st = readConfig().styles || {};
+  const k = normKey(fournisseur);
+  const found = Object.keys(st).filter((n) => normKey(n) === k && st[n] && typeof st[n].l === "string" && st[n].l.length > 0);
+  return found.length ? found[0] : "";
+}
+// Décodage base64 → tableau d'octets (le moteur JS n'a pas atob)
+function b64decode(s) {
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const out = [];
+  let buf = 0, bits = 0;
+  for (let i = 0; i < s.length; i++) {
+    const v = A.indexOf(s.charAt(i));
+    if (v < 0) continue;
+    buf = (buf << 6) | v; bits += 6;
+    if (bits >= 8) { bits -= 8; out.push((buf >> bits) & 255); buf = buf & ((1 << bits) - 1); }
+  }
+  return out;
+}
+
+// Corps du mail. Aucun emoji hors plan de base (📦 📍 💬…) : certains logiciels de messagerie les affichent en carrés vides.
+function mailHtml(r, hasPhoto, base) {
   const got = r.getInt("nb_recus");
   const complete = r.getString("etat") === "complete";
   const lignes = [];
   lignes.push(complete ? "✅ <b>Commande complète</b>" : "⚠️ <b>Commande incomplète</b> : il manque des éléments");
-  lignes.push("&#128230; " + got + " colis reçu" + (got > 1 ? "s" : ""));
+  lignes.push("Colis reçus : <b>" + got + "</b>");
   if (r.getBool("abime")) lignes.push("⚠️ <b>Colis abîmé</b> à l'arrivée");
-  lignes.push("&#128205; À récupérer : <b>" + esc(r.getString("lieu")) + "</b>");
-  if (r.getString("commentaire")) lignes.push("&#128172; " + esc(r.getString("commentaire")));
-  const rappel = [r.getString("fournisseur"), r.getString("contenu"), r.getString("reference")].filter((x) => x).map(esc).join(" — ");
+  lignes.push("À récupérer : <b>" + esc(r.getString("lieu")) + "</b>");
+  if (r.getString("commentaire")) lignes.push("Remarque : " + esc(r.getString("commentaire")));
+
+  // fournisseur en gras, avec son logo s'il en a un (image servie par la route /colis/logo)
+  const f = r.getString("fournisseur");
+  const lk = base ? logoKey(f) : "";
+  const four = (lk ? '<img src="' + base + "/colis/logo?n=" + encodeURIComponent(lk) + '" alt="" height="30" style="height:30px;vertical-align:middle;margin-right:8px;border-radius:4px"> ' : "") + "<b>" + esc(f) + "</b>";
+  const rappel = four + [r.getString("contenu"), r.getString("reference") ? "(" + r.getString("reference") + ")" : ""].filter((x) => x).map((x) => " — " + esc(x)).join("");
+
   const op = r.getString("operateur");
   return '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:520px;color:#3b3330">' +
-    '<div style="background:#169fdb;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-size:18px;font-weight:700">&#128230; Votre commande est arrivée</div>' +
+    '<div style="background:#169fdb;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-size:18px;font-weight:700">Votre commande est arrivée</div>' +
     '<div style="border:1px solid #d5e1e9;border-top:0;border-radius:0 0 10px 10px;padding:18px;line-height:1.7">' +
     "<p>Bonjour " + esc(r.getString("prenom")) + ",</p>" +
-    "<p>Votre commande a été réceptionnée à l'atelier :<br><i>" + rappel + "</i></p>" +
+    "<p>Votre commande a été réceptionnée à l'atelier :<br>" + rappel + "</p>" +
     "<p>" + lignes.join("<br>") + "</p>" +
     (hasPhoto ? '<p><img src="cid:photo.jpg" alt="Photo de la réception" style="max-width:100%;border-radius:8px;border:1px solid #d5e1e9"></p>' : "") +
-    '<p style="color:#6b7f8b;font-size:13px">Réceptionnée' + (op ? " par " + esc(op) : "") + " le " +
-    new Date(r.getString("recu_le")).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) +
+    '<p style="color:#6b7f8b;font-size:13px">Réceptionnée' + (op ? " par " + esc(op) : "") + " le " + parisDate(r.getString("recu_le")) +
     "<br>Génie mécanique et productique — IUT de Bordeaux</p></div></div>";
 }
 
@@ -73,7 +123,8 @@ function sendMail(r) {
         opts.inlineAttachments = { "photo.jpg": reader };
       }
     }
-    opts.html = mailHtml(r, !!opts.inlineAttachments);
+    const base = String(s.meta.appURL || "").replace(/\/+$/, "");     // « Application URL » réglée dans PocketBase
+    opts.html = mailHtml(r, !!opts.inlineAttachments, base);
     $app.newMailClient().send(new MailerMessage(opts));
   } finally {
     if (reader) reader.close();
@@ -97,4 +148,4 @@ function lotRecords(lot) {
   return $app.findRecordsByFilter("colis", "lot = {:l} && statut = 'recu'", "created", 50, 0, { l: lot });
 }
 
-module.exports = { JOURS_HISTORIQUE, JOURS_PURGE, JOURS_PHOTO, DELAI_PHOTO_MIN, clean, esc, validEmail, daysAgoIso, pub, sendMail, dispatch, lotRecords };
+module.exports = { JOURS_HISTORIQUE, JOURS_PURGE, JOURS_PHOTO, DELAI_PHOTO_MIN, clean, esc, validEmail, daysAgoIso, pub, sendMail, dispatch, lotRecords, readConfig, normKey, logoKey, b64decode, parisDate };
