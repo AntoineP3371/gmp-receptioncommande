@@ -26,6 +26,8 @@ button { cursor: pointer; }
 .btn.small { padding: 8px 14px; min-height: 40px; font-size: .9rem; border-radius: 10px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 
+.topbar h1 .ver { display: block; font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .03em; margin-top: 2px; }
+
 /* ---------- Accueil ---------- */
 .home { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; max-width: 880px; margin: 40px auto; padding: 0 18px; }
 /* « Je réceptionne » (écran tactile) : bouton agrandi ; « J'attends » garde sa taille d'origine (428 px) */
@@ -236,3 +238,22 @@ html.recep body { font-size: 1.1rem; }
 .fprev .flogo { height: 30px; max-width: 90px; }
 .factions { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
 .frow .fx { border: 0; background: var(--surface); color: var(--red); width: 34px; height: 34px; border-radius: 50%; font-weight: 900; font-size: 1.1rem; }
+
+/* bandeau fournisseur agrandi (taille « plus grand ») sur les tuiles de commandes EN ATTENTE ; les tuiles déjà réceptionnées gardent l'ancienne taille */
+.tile.t5:not(.done) .t5-head { font-size: clamp(24px, 1.6vw + 8px, 32px); padding: 22px 20px; padding-right: 68px; gap: 8px 16px; flex-wrap: wrap; }
+.tile.t5:not(.done) .t5-head span { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+.tile.t5:not(.done) .t5-head .flogo { height: 58px; max-width: 165px; }
+.tile.t5:not(.done) .check { top: 20px; right: 20px; width: 38px; height: 38px; }
+
+/* admin : une ligne par fournisseur / opérateur (tout visible sans retour à la ligne) */
+.frow { flex-wrap: nowrap; }
+.frow .btn, .frow .fprev { white-space: nowrap; }
+.factions { flex-wrap: nowrap; }
+.fprev { flex: 0 1 260px; }
+.fprev .flogo { flex: 0 0 auto; }
+.emobtn { width: 48px; height: 48px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface); font-size: 1.6rem; cursor: pointer; flex: 0 0 auto; }
+.opill { background: var(--bg-accent, #e3f3fb); color: var(--text-accent, #0e78a8); }
+.emogrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
+.emopick { height: 56px; font-size: 1.8rem; border: 2px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer; }
+.emopick:hover { border-color: var(--blue); background: var(--blue-light); }
+@media (max-width: 1000px) { .frow, .factions { flex-wrap: wrap; } }

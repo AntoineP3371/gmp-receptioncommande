@@ -44,6 +44,13 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 - **✏️ Renommer** (admin, onglet « Fournisseurs courants ») : change le nom d'un fournisseur dans la liste **et dans toutes les commandes existantes** ; la couleur et le logo suivent. Si le nouveau nom existe déjà, les deux fournisseurs sont **fusionnés** (utile pour corriger une faute de frappe). Les mails déjà envoyés ne changent pas.
 - Cette version ajoute la migration `1791000004_config_logos.js` : **redémarrer PocketBase** après la mise à jour.
 
+## Opérateurs (admin)
+
+- Onglet « Opérateurs » : une ligne par opérateur, comme pour les fournisseurs.
+- **✏️ Renommer** : change le nom dans la liste **et dans toutes ses réceptions passées** ; si le nouveau nom existe déjà, les deux sont fusionnés.
+- **Émoticone** : le carré à gauche ouvre une palette (ou collez le vôtre : Windows + point). Il s'affiche sur le bouton de l'opérateur à la réception. Pensez à **Enregistrer la liste**.
+- Le numéro de version s'affiche sous le titre de chaque page ; il se change dans `app.js` (`const VERSION`).
+
 ## Corriger ou annuler une réception (admin)
 
 - **✏️ Modifier** : complète / incomplète, nombre de colis, intact / abîmé, lieu, opérateur, commentaire. Aucun nouveau mail n'est envoyé au commandeur.

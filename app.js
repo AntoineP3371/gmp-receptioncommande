@@ -89,7 +89,7 @@
       if (rows.every((r) => r.mail_envoye)) throw new Error("Les mails de ce lot sont déjà partis.");
       rows.forEach((r) => { r.photo = true; r.photo_data = dataUrl; r.mail_envoye = true; }); demoSave(l); return { sent: true, erreur: "" };
     },
-    async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [], styles: c.styles || {} }; },
+    async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [], styles: c.styles || {}, emojis: c.emojis || {} }; },
     async mine(b) { const e = String(b.email).toLowerCase(); return { items: demoLoad().filter((r) => r.email === e).map(pubOf) }; },
     async cancel(b) {
       const l = demoLoad(), r = l.find((x) => x.id === b.id);
@@ -132,6 +132,13 @@
   }
   document.addEventListener("DOMContentLoaded", themeBanner);
 
+  // Numéro de version : à changer ICI à chaque nouvelle version, il s'affiche sous le titre de toutes les pages
+  const VERSION = "v0.9";
+  document.addEventListener("DOMContentLoaded", () => {
+    const h = document.querySelector(".topbar h1");
+    if (h) h.insertAdjacentHTML("beforeend", '<span class="ver">' + VERSION + "</span>");
+  });
+
   // Accès « admin » du mode démo (en mode PocketBase, admin.html parle directement à l'API protégée)
   const demoAdmin = {
     all: () => demoLoad(),
@@ -162,5 +169,15 @@
     return { bg, fg: inkFor(bg), logo: s.l || "", custom: !!s.c };
   }
 
-  window.RC = { api: demo ? demoApi : pbApi, setStyles, fStyle, autoColor, normKey, demo, demoAdmin, PB, photoUrl, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
+  // ---------- émoticone des opérateurs ----------
+  let opEmojis = {};
+  function decodeEmoji(s) {
+    if (typeof s !== "string") return "";
+    if (s.indexOf("u:") !== 0) return s;                                         // valeur brute (mode démo)
+    return s.slice(2).split("-").map((h) => String.fromCodePoint(parseInt(h, 16))).join("");
+  }
+  function setEmojis(map) { opEmojis = {}; Object.keys(map || {}).forEach((k) => { opEmojis[normKey(k)] = decodeEmoji(map[k]); }); }
+  const emojiOf = (name) => opEmojis[normKey(name)] || "";
+
+  window.RC = { version: VERSION, api: demo ? demoApi : pbApi, setEmojis, emojiOf, decodeEmoji, setStyles, fStyle, autoColor, normKey, demo, demoAdmin, PB, photoUrl, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
 })();

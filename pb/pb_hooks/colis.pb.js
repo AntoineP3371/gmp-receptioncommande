@@ -11,12 +11,22 @@ routerAdd("GET", "/colis/list", (e) => {
 
 // GET /colis/config : fournisseurs courants et liste des opérateurs (modifiables dans l'espace admin)
 routerAdd("GET", "/colis/config", (e) => {
-  let fournisseurs = [], operateurs = [], styles = {};
+  let fournisseurs = [], operateurs = [], styles = {}, emojis = {};
   try {
     const cfg = JSON.parse($app.findFirstRecordByData("colis_config", "key", "main").getString("data"));
     if (Array.isArray(cfg.fournisseurs)) fournisseurs = cfg.fournisseurs.slice(0, 100).map((f) => String(f).slice(0, 80));
     if (Array.isArray(cfg.operateurs)) operateurs = cfg.operateurs.slice(0, 100).map((f) => String(f).slice(0, 60));
     // couleur (#rrggbb) et logo (petite image en data-URL) de chaque fournisseur : on ne renvoie que des valeurs valides
+    // émoticone de chaque opérateur : renvoyé sous forme "u:1F4E6-FE0F" (codes hexadécimaux), décodé par la page
+    const em = cfg.emojis || {};
+    Object.keys(em).slice(0, 100).forEach((k) => {
+      const v = em[k];
+      if (typeof v === "string" && v.length > 0 && v.length <= 16) {
+        const cps = [];
+        for (const ch of v) cps.push(ch.codePointAt(0).toString(16).toUpperCase());
+        emojis[String(k).slice(0, 60)] = "u:" + cps.join("-");
+      }
+    });
     const st = cfg.styles || {};
     Object.keys(st).slice(0, 100).forEach((k) => {
       const v = st[k] || {}, out = {};
@@ -25,7 +35,7 @@ routerAdd("GET", "/colis/config", (e) => {
       if (out.c || out.l) styles[String(k).slice(0, 80)] = out;
     });
   } catch (err) { /* pas encore de configuration */ }
-  return e.json(200, { fournisseurs: fournisseurs, operateurs: operateurs, styles: styles });
+  return e.json(200, { fournisseurs: fournisseurs, operateurs: operateurs, styles: styles, emojis: emojis });
 });
 
 // POST /colis/declare : le commandeur déclare une commande attendue

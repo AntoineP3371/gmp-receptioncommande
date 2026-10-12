@@ -112,7 +112,7 @@
         <div class="t5-body"><div class="who">${esc(nomComplet(r))}</div>
         ${r.contenu ? `<div class="what">${esc(r.contenu)}</div>` : ""}
         <div class="state ${st.bad ? "warn" : "ok"}">${st.bad ? "⚠️" : "✅"} ${st.txt}</div>
-        <div class="meta"><span>📍 ${esc(r.lieu)}</span><span>${fmtDate(r.recu_le)}${r.operateur ? " · " + esc(r.operateur) : ""}</span></div>
+        <div class="meta"><span>📍 ${esc(r.lieu)}</span><span>${fmtDate(r.recu_le)}${r.operateur ? " · " + (RC.emojiOf(r.operateur) ? RC.emojiOf(r.operateur) + " " : "") + esc(r.operateur) : ""}</span></div>
         ${photoTag(r)}</div></div>`;
     }
     const on = sel.has(r.id);
@@ -195,7 +195,7 @@
           <h3>Mis à disposition à…</h3>
           <div class="choices">${(window.LIEUX || []).map((l) => `<button class="choice ${f.lieu === l ? "on" : ""}" data-lieu="${esc(l)}">📍 ${esc(l)}</button>`).join("")}</div>
           <h3>Opérateur <span class="note" style="text-transform:none">(facultatif)</span></h3>
-          ${operateurs.length ? `<div class="choices" id="opbtns">${operateurs.map((o) => `<button class="choice ${f.operateur === o ? "on" : ""}" data-op="${esc(o)}">👤 ${esc(o)}</button>`).join("")}</div>` : ""}
+          ${operateurs.length ? `<div class="choices" id="opbtns">${operateurs.map((o) => `<button class="choice ${f.operateur === o ? "on" : ""}" data-op="${esc(o)}">${RC.emojiOf(o) || "👤"} ${esc(o)}</button>`).join("")}</div>` : ""}
           <input type="text" id="op" placeholder="${operateurs.length ? "Autre nom (saisie libre)" : "Nom de l'opérateur"}" value="${esc(txt)}" style="margin-top:10px">
         </div>
       </div>
@@ -291,7 +291,7 @@
     pollTimer = setInterval(poll, 2500);
   }
 
-  api.config().then((c) => { operateurs = c.operateurs || []; RC.setStyles(c.styles, c.fournisseurs); render(); }).catch(() => {});
+  api.config().then((c) => { operateurs = c.operateurs || []; RC.setStyles(c.styles, c.fournisseurs); RC.setEmojis(c.emojis); render(); }).catch(() => {});
   Clavier.init({ toggle: $("kbtoggle") });
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée
