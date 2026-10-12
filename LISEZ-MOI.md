@@ -41,6 +41,7 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 - **Tuiles** (par défaut) : un bandeau de la **couleur du fournisseur** (avec son logo s'il en a un) puis le nom, le contenu en plus petit, le n° de commande et la date.
 - **Liste** : le bouton **☰ Liste** / **▦ Tuiles** à côté de « Effacer » bascule vers une ligne par commande (plus dense) ; le choix est mémorisé.
 - **Couleur et logo des fournisseurs** : dans `admin.html`, onglet « Fournisseurs courants » : sélecteur de couleur, « Ajouter un logo » (image réduite automatiquement à 160 × 80 px, environ 5 à 20 Ko), « Retirer le logo », « ↺ couleur » pour revenir à la couleur automatique, puis **Enregistrer la liste**. Tant qu'aucune couleur n'est choisie, chaque fournisseur de la liste reçoit une couleur automatique différente. Un fournisseur saisi à la main et absent de la liste reçoit une couleur automatique : pour le personnaliser, ajoutez-le à la liste (même orthographe, sans tenir compte des majuscules ni des accents).
+- **✏️ Renommer** (admin, onglet « Fournisseurs courants ») : change le nom d'un fournisseur dans la liste **et dans toutes les commandes existantes** ; la couleur et le logo suivent. Si le nouveau nom existe déjà, les deux fournisseurs sont **fusionnés** (utile pour corriger une faute de frappe). Les mails déjà envoyés ne changent pas.
 - Cette version ajoute la migration `1791000004_config_logos.js` : **redémarrer PocketBase** après la mise à jour.
 
 ## Corriger ou annuler une réception (admin)
