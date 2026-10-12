@@ -36,6 +36,13 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 8. **Créer le compte administrateur** : tableau de bord PocketBase (`.../_/`, connexion super-utilisateur) → collection `colis_admins` → **New record** (e-mail, mot de passe, confirmation). Ce compte est propre à cette appli : celui du portail ne fonctionne pas ici. Se connecter ensuite sur `admin.html`.
 9. Sur le PC de l'atelier : ouvrir `.../reception.html` et l'ajouter aux favoris / à l'écran d'accueil.
 
+## Affichage des commandes (réception)
+
+- **Tuiles** (par défaut) : un bandeau de la **couleur du fournisseur** (avec son logo s'il en a un) puis le nom, le contenu en plus petit, le n° de commande et la date.
+- **Liste** : le bouton **☰ Liste** / **▦ Tuiles** à côté de « Effacer » bascule vers une ligne par commande (plus dense) ; le choix est mémorisé.
+- **Couleur et logo des fournisseurs** : dans `admin.html`, onglet « Fournisseurs courants » : sélecteur de couleur, « Ajouter un logo » (image réduite automatiquement à 160 × 80 px, environ 5 à 20 Ko), « Retirer le logo », « ↺ couleur » pour revenir à la couleur automatique, puis **Enregistrer la liste**. Tant qu'aucune couleur n'est choisie, chaque fournisseur de la liste reçoit une couleur automatique différente. Un fournisseur saisi à la main et absent de la liste reçoit une couleur automatique : pour le personnaliser, ajoutez-le à la liste (même orthographe, sans tenir compte des majuscules ni des accents).
+- Cette version ajoute la migration `1791000004_config_logos.js` : **redémarrer PocketBase** après la mise à jour.
+
 ## Corriger ou annuler une réception (admin)
 
 - **✏️ Modifier** : complète / incomplète, nombre de colis, intact / abîmé, lieu, opérateur, commentaire. Aucun nouveau mail n'est envoyé au commandeur.

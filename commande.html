@@ -49,10 +49,10 @@
 
   function setFournisseurs(list) {
     $("fours").innerHTML = list.map((f) => `<option value="${esc(f)}">`).join("");
-    $("fourchips").innerHTML = list.map((f) => `<button type="button" class="chip" data-f="${esc(f)}">${esc(f)}</button>`).join("");
+    $("fourchips").innerHTML = list.map((f) => { const st = RC.fStyle(f); return `<button type="button" class="chip" data-f="${esc(f)}">${st.logo ? `<img class="flogo mini" alt="" src="${st.logo}">` : `<i class="dot" style="background:${st.bg}"></i>`}${esc(f)}</button>`; }).join("");
   }
   setFournisseurs(window.FOURNISSEURS || []);                                       // valeurs de secours (config.js)
-  api.config().then((c) => { if (c.fournisseurs && c.fournisseurs.length) setFournisseurs(c.fournisseurs); }).catch(() => {});
+  api.config().then((c) => { RC.setStyles(c.styles, c.fournisseurs); if (c.fournisseurs && c.fournisseurs.length) setFournisseurs(c.fournisseurs); }).catch(() => {});
   $("fourchips").onclick = (e) => { const b = e.target.closest("[data-f]"); if (b) { $("four").value = b.dataset.f; $("contenu").focus(); } };
 
   async function loadMine() {

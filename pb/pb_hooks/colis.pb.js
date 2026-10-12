@@ -11,13 +11,21 @@ routerAdd("GET", "/colis/list", (e) => {
 
 // GET /colis/config : fournisseurs courants et liste des opérateurs (modifiables dans l'espace admin)
 routerAdd("GET", "/colis/config", (e) => {
-  let fournisseurs = [], operateurs = [];
+  let fournisseurs = [], operateurs = [], styles = {};
   try {
     const cfg = JSON.parse($app.findFirstRecordByData("colis_config", "key", "main").getString("data"));
     if (Array.isArray(cfg.fournisseurs)) fournisseurs = cfg.fournisseurs.slice(0, 100).map((f) => String(f).slice(0, 80));
     if (Array.isArray(cfg.operateurs)) operateurs = cfg.operateurs.slice(0, 100).map((f) => String(f).slice(0, 60));
+    // couleur (#rrggbb) et logo (petite image en data-URL) de chaque fournisseur : on ne renvoie que des valeurs valides
+    const st = cfg.styles || {};
+    Object.keys(st).slice(0, 100).forEach((k) => {
+      const v = st[k] || {}, out = {};
+      if (typeof v.c === "string" && /^#[0-9a-fA-F]{6}$/.test(v.c)) out.c = v.c;
+      if (typeof v.l === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(v.l) && v.l.length <= 80000) out.l = v.l;
+      if (out.c || out.l) styles[String(k).slice(0, 80)] = out;
+    });
   } catch (err) { /* pas encore de configuration */ }
-  return e.json(200, { fournisseurs: fournisseurs, operateurs: operateurs });
+  return e.json(200, { fournisseurs: fournisseurs, operateurs: operateurs, styles: styles });
 });
 
 // POST /colis/declare : le commandeur déclare une commande attendue

@@ -89,7 +89,7 @@
       if (rows.every((r) => r.mail_envoye)) throw new Error("Les mails de ce lot sont déjà partis.");
       rows.forEach((r) => { r.photo = true; r.photo_data = dataUrl; r.mail_envoye = true; }); demoSave(l); return { sent: true, erreur: "" };
     },
-    async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [] }; },
+    async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [], styles: c.styles || {} }; },
     async mine(b) { const e = String(b.email).toLowerCase(); return { items: demoLoad().filter((r) => r.email === e).map(pubOf) }; },
     async cancel(b) {
       const l = demoLoad(), r = l.find((x) => x.id === b.id);
@@ -147,5 +147,20 @@
     return PB + "/api/files/colis/" + r.photo_rec + "/" + encodeURIComponent(r.photo_nom) + (thumb ? "?thumb=480x0" : "");
   }
 
-  window.RC = { api: demo ? demoApi : pbApi, demo, demoAdmin, PB, photoUrl, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
+  // ---------- couleur et logo des fournisseurs (réglés dans l'admin) ----------
+  const PALETTE = ["#d9480f", "#1c7ed6", "#2f9e44", "#7048e8", "#c2255c", "#0c8599", "#e8590c", "#5c940d", "#364fc7", "#a61e4d", "#087f5b", "#862e9c"];
+  const normKey = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+  let fStyles = {}, fList = [];
+  // st = styles enregistrés ; list = liste des fournisseurs de l'admin (leur donne des couleurs automatiques toutes différentes)
+  function setStyles(st, list) { fStyles = {}; Object.keys(st || {}).forEach((k) => { fStyles[normKey(k)] = st[k]; }); fList = (list || []).map(normKey); }
+  function autoColor(name) { const k = normKey(name), idx = fList.indexOf(k); if (idx >= 0) return PALETTE[idx % PALETTE.length]; let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0; return PALETTE[h % PALETTE.length]; }
+  function inkFor(hex) { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#1f2a30" : "#ffffff"; }
+  // { bg, fg, logo, custom } : couleur choisie par l'admin, sinon couleur automatique (stable pour un même nom)
+  function fStyle(name) {
+    const s = fStyles[normKey(name)] || {};
+    const bg = /^#[0-9a-f]{6}$/i.test(s.c || "") ? s.c : autoColor(name);
+    return { bg, fg: inkFor(bg), logo: s.l || "", custom: !!s.c };
+  }
+
+  window.RC = { api: demo ? demoApi : pbApi, setStyles, fStyle, autoColor, normKey, demo, demoAdmin, PB, photoUrl, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
 })();

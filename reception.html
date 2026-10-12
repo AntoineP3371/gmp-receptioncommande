@@ -14,6 +14,7 @@
     <div class="searchrow">
       <input id="q" type="search" placeholder="🔍 Rechercher : nom, fournisseur, contenu, n° de commande…" autocomplete="off" inputmode="search">
       <button class="btn ghost" id="clear">Effacer</button>
+      <button class="btn ghost" id="viewtoggle" type="button" title="Changer l'affichage">☰ Liste</button>
       <button class="btn ghost kbtoggle" id="kbtoggle" type="button">⌨</button>
     </div>
     <div class="tabs">
@@ -76,7 +77,7 @@
     const fours = Object.keys(cnt).sort((a, b) => a.localeCompare(b, "fr"));
     if (fFour && !cnt[fFour]) fFour = "";
     $("chipsF").innerHTML = '<span class="lbl">Fournisseur</span>' + (fours.length ? "" : '<span class="note">—</span>') +
-      fours.map((f) => `<button class="chip ${f === fFour ? "on" : ""}" data-four="${esc(f)}">${esc(f)}<small>${cnt[f]}</small></button>`).join("");
+      fours.map((f) => `<button class="chip ${f === fFour ? "on" : ""}" data-four="${esc(f)}"><i class="dot" style="background:${RC.fStyle(f).bg}"></i>${esc(f)}<small>${cnt[f]}</small></button>`).join("");
 
     // alphabet sur l'initiale du nom
     const letters = new Set(base.map((r) => norm(r.nom).charAt(0).toUpperCase()));
@@ -85,7 +86,9 @@
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => `<button class="chip az ${l === fLet ? "on" : ""} ${letters.has(l) ? "" : "dim"}" data-let="${l}">${l}</button>`).join("");
 
     const list = base.filter(matches);
-    $("grid").innerHTML = list.length ? list.map(tile).join("") :
+    $("grid").className = vue === "liste" ? "grid lst" : "grid";
+    $("viewtoggle").textContent = vue === "liste" ? "▦ Tuiles" : "☰ Liste";
+    $("grid").innerHTML = list.length ? list.map(vue === "liste" ? row : tile).join("") :
       `<div class="empty">${base.length ? "Aucun résultat avec ces filtres." : tab === "attendu" ? "Aucune commande en attente. 🎉" : "Rien de réceptionné récemment."}</div>`;
 
     // barre de sélection
@@ -94,20 +97,41 @@
     $("selcount").textContent = n + " commande" + (n > 1 ? "s" : "") + " sélectionnée" + (n > 1 ? "s" : "");
   }
 
+  // ---------- affichage : tuiles (bloc fournisseur + bloc nom) ou liste en lignes ----------
+  let vue = lsGet("rc_vue", "tuiles");
+  const stateOf = (r) => { const bad = r.etat === "incomplete" || r.abime; return { bad, txt: (r.etat === "complete" ? "Complète" : "Incomplète") + " · " + r.nb_recus + " colis" + (r.abime ? " · abîmée" : "") }; };
+  const photoTag = (r) => RC.photoUrl(r) ? `<img class="thumb" loading="lazy" alt="Photo de la réception" src="${esc(RC.photoUrl(r, true))}" data-full="${esc(RC.photoUrl(r))}">` : "";
+
+  const fhead = (name) => { const st = RC.fStyle(name); return `<div class="t5-head" style="background:${st.bg};color:${st.fg}">${st.logo ? `<img class="flogo" alt="" src="${st.logo}">` : ""}<span>${esc(name)}</span></div>`; };
+  const fpill = (name) => { const st = RC.fStyle(name); return `<span class="fpill" style="background:${st.bg};color:${st.fg}">${st.logo ? `<img class="flogo" alt="" src="${st.logo}">` : ""}${esc(name)}</span>`; };
+
   function tile(r) {
     if (r.statut === "recu") {
-      const bad = r.etat === "incomplete" || r.abime;
-      return `<div class="tile done"><div class="who">${esc(nomComplet(r))}</div><span class="four">${esc(r.fournisseur)}</span>
-        <div class="what">${esc(r.contenu)}</div>
-        <div class="state ${bad ? "warn" : "ok"}">${bad ? "⚠️" : "✅"} ${r.etat === "complete" ? "Complète" : "Incomplète"} · ${r.nb_recus} colis${r.abime ? " · abîmée" : ""}</div>
+      const st = stateOf(r);
+      return `<div class="tile t5 done">${fhead(r.fournisseur)}
+        <div class="t5-body"><div class="who">${esc(nomComplet(r))}</div>
+        ${r.contenu ? `<div class="what">${esc(r.contenu)}</div>` : ""}
+        <div class="state ${st.bad ? "warn" : "ok"}">${st.bad ? "⚠️" : "✅"} ${st.txt}</div>
         <div class="meta"><span>📍 ${esc(r.lieu)}</span><span>${fmtDate(r.recu_le)}${r.operateur ? " · " + esc(r.operateur) : ""}</span></div>
-        ${RC.photoUrl(r) ? `<img class="thumb" loading="lazy" alt="Photo de la réception" src="${esc(RC.photoUrl(r, true))}" data-full="${esc(RC.photoUrl(r))}">` : ""}</div>`;
+        ${photoTag(r)}</div></div>`;
     }
     const on = sel.has(r.id);
-    return `<button class="tile ${on ? "sel" : ""}" data-id="${esc(r.id)}"><span class="check">${on ? "✓" : ""}</span>
-      <div class="who">${esc(nomComplet(r))}</div><span class="four">${esc(r.fournisseur)}</span>
+    return `<button class="tile t5 ${on ? "sel" : ""}" data-id="${esc(r.id)}"><span class="check">${on ? "✓" : ""}</span>
+      ${fhead(r.fournisseur)}
+      <div class="t5-body"><div class="who">${esc(nomComplet(r))}</div>
       ${r.contenu ? `<div class="what">${esc(r.contenu)}</div>` : ""}
-      <div class="meta">${r.reference ? `<span>N° ${esc(r.reference)}</span>` : ""}<span>déclarée le ${fmtDate(r.created)}</span></div></button>`;
+      <div class="meta">${r.reference ? `<span>N° ${esc(r.reference)}</span>` : ""}<span>déclarée le ${fmtDate(r.created)}</span></div></div></button>`;
+  }
+
+  function row(r) {
+    if (r.statut === "recu") {
+      const st = stateOf(r);
+      return `<div class="lrow done"><span class="lf">${fpill(r.fournisseur)}</span><span class="ln">${esc(nomComplet(r))}</span><span class="lc">${esc(r.contenu)}</span>
+        <span class="state ${st.bad ? "warn" : "ok"}">${st.bad ? "⚠️" : "✅"} ${st.txt}</span><span class="lm">📍 ${esc(r.lieu)}<br>${fmtDate(r.recu_le)}</span>${photoTag(r) || "<span></span>"}</div>`;
+    }
+    const on = sel.has(r.id);
+    return `<button class="lrow ${on ? "sel" : ""}" data-id="${esc(r.id)}"><span class="lf">${fpill(r.fournisseur)}</span><span class="ln">${esc(nomComplet(r))}</span><span class="lc">${esc(r.contenu)}${r.reference ? ` <small>(N° ${esc(r.reference)})</small>` : ""}</span>
+      <span class="lm">${fmtDate(r.created)}</span><span class="check">${on ? "✓" : ""}</span></button>`;
   }
 
   // ---------- événements de la liste ----------
@@ -118,7 +142,7 @@
   });
   $("lb").onclick = () => { $("lb").hidden = true; $("lbimg").removeAttribute("src"); };
   $("grid").onclick = (e) => {
-    const t = e.target.closest(".tile[data-id]"); if (!t) return;
+    const t = e.target.closest("[data-id]"); if (!t) return;
     const id = t.dataset.id;
     if (sel.has(id)) sel.delete(id); else sel.set(id, 1);
     render();
@@ -128,6 +152,7 @@
   document.querySelector(".tabs").onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) { tab = b.dataset.tab; render(); } };
   $("q").oninput = () => { q = $("q").value; render(); };
   $("clear").onclick = () => { q = ""; fFour = ""; fLet = ""; $("q").value = ""; render(); };
+  $("viewtoggle").onclick = () => { vue = vue === "liste" ? "tuiles" : "liste"; lsSet("rc_vue", vue); render(); };
   $("selclear").onclick = () => { sel.clear(); render(); };
   $("selgo").onclick = openForm;
 
@@ -266,7 +291,7 @@
     pollTimer = setInterval(poll, 2500);
   }
 
-  api.config().then((c) => { operateurs = c.operateurs || []; }).catch(() => {});
+  api.config().then((c) => { operateurs = c.operateurs || []; RC.setStyles(c.styles, c.fournisseurs); render(); }).catch(() => {});
   Clavier.init({ toggle: $("kbtoggle") });
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée

@@ -71,8 +71,8 @@
   <section id="p-four" hidden>
     <div class="card" style="max-width:760px">
       <h2>Fournisseurs courants</h2>
-      <p class="note" style="margin-top:0">Proposés en un clic dans le formulaire « J'attends une commande ». Le champ reste libre : un fournisseur absent de cette liste peut toujours être saisi.</p>
-      <div class="fchips" id="fchips"></div>
+      <p class="note" style="margin-top:0">Proposés en un clic dans le formulaire « J'attends une commande ». Le champ reste libre : un fournisseur absent de cette liste peut toujours être saisi. Chaque fournisseur a une <b>couleur</b> (affichée sur les tuiles de réception ; automatique tant que vous n'en choisissez pas) et un <b>logo</b> facultatif, réduit automatiquement. Les couleurs et logos s'appliquent aux noms de cette liste.</p>
+      <div id="fchips"></div>
       <div class="addrow"><input id="newf" placeholder="Ajouter un fournisseur…" maxlength="80"><button class="btn" id="addf">Ajouter</button></div>
       <div class="actions"><button class="btn" id="savef">💾 Enregistrer la liste</button></div>
     </div>
@@ -89,6 +89,7 @@
   </section>
 </div>
 
+<input type="file" id="flogofile" accept="image/*" hidden>
 <div class="overlay" id="ed" hidden><div class="sheet modal" id="edsheet"></div></div>
 
 <script src="config.js"></script>
@@ -98,7 +99,7 @@
 (function () {
   const { esc, fmtDate, toast, demo, PB } = RC;
   const $ = (id) => document.getElementById(id);
-  let token = "", rows = [], fournisseurs = [], operateurs = [], byId = {};
+  let token = "", rows = [], fournisseurs = [], operateurs = [], styles = {}, byId = {};
   try { token = sessionStorage.getItem("rc_admin_token") || ""; } catch (e) { /* */ }
 
   // ---------- API protégée (PocketBase) ----------
@@ -270,7 +271,18 @@
     f: { get: () => fournisseurs, chips: "fchips", input: "newf", add: "addf", save: "savef", empty: "Aucun fournisseur : le formulaire utilisera la liste de config.js." },
     o: { get: () => operateurs, chips: "ochips", input: "newo", add: "addo", save: "saveo", empty: "Aucun opérateur : l'écran de réception n'affichera que la saisie libre." },
   };
+  function drawF() {
+    RC.setStyles(styles, fournisseurs);
+    $("fchips").innerHTML = fournisseurs.map((f, i) => {
+      const st = RC.fStyle(f);
+      return `<div class="frow"><input type="color" value="${st.bg}" data-fc="${i}" title="Couleur du fournisseur">
+        <span class="fprev" style="background:${st.bg};color:${st.fg}">${st.logo ? `<img class="flogo" alt="" src="${st.logo}">` : ""}${esc(f)}</span>
+        <span class="factions"><button class="btn ghost small" data-fl="${i}">${st.logo ? "Changer le logo" : "Ajouter un logo"}</button>${st.logo ? `<button class="btn ghost small" data-flx="${i}">Retirer le logo</button>` : ""}${st.custom ? `<button class="btn ghost small" data-fcr="${i}" title="Revenir à la couleur automatique">↺ couleur</button>` : ""}</span>
+        <button class="fx" title="Retirer ce fournisseur" data-rm="${i}">×</button></div>`;
+    }).join("") || `<span class="note">${LISTS.f.empty}</span>`;
+  }
   function drawList(k) {
+    if (k === "f") { drawF(); return; }
     const L = LISTS[k];
     $(L.chips).innerHTML = L.get().map((f, i) => `<span class="fchip">${esc(f)}<button title="Retirer" data-rm="${i}">×</button></span>`).join("") || `<span class="note">${L.empty}</span>`;
   }
@@ -279,11 +291,13 @@
     if (!L.get().some((f) => f.toLowerCase() === v.toLowerCase())) L.get().push(v);
     $(L.input).value = ""; drawList(k); $(L.input).focus();
   }
+  // ne garde que les styles des fournisseurs encore dans la liste
+  function cleanStyles() { const out = {}; fournisseurs.forEach((f) => { if (styles[f] && (styles[f].c || styles[f].l)) out[f] = styles[f]; }); return out; }
   async function saveConfig() {
-    if (demo) RC.demoAdmin.setConfig({ fournisseurs, operateurs });
+    if (demo) RC.demoAdmin.setConfig({ fournisseurs, operateurs, styles: cleanStyles() });
     else {
       const j = await pb("/api/collections/colis_config/records?filter=" + encodeURIComponent("key='main'") + "&perPage=1");
-      const data = { fournisseurs, operateurs };
+      const data = { fournisseurs, operateurs, styles: cleanStyles() };
       if (j.items.length) await pb("/api/collections/colis_config/records/" + j.items[0].id, { method: "PATCH", body: JSON.stringify({ data }) });
       else await pb("/api/collections/colis_config/records", { method: "POST", body: JSON.stringify({ key: "main", data }) });
     }
@@ -295,8 +309,47 @@
     $(L.chips).onclick = (e) => { const b = e.target.closest("[data-rm]"); if (b) { L.get().splice(+b.dataset.rm, 1); drawList(k); } };
     $(L.save).onclick = async () => { try { await saveConfig(); toast("✅ Liste enregistrée.", "ok"); } catch (err) { toast(err.message, "err"); } };
   });
+  // ----- couleur et logo des fournisseurs -----
+  let logoIdx = -1;
+  function shrinkLogo(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image(), u = URL.createObjectURL(file);
+      img.onload = () => {
+        const k = Math.min(1, 160 / img.width, 80 / img.height);
+        const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u);
+        let d = c.toDataURL("image/png");
+        if (d.length > 45000) { const w = c.toDataURL("image/webp", 0.85); if (w.indexOf("data:image/webp") === 0 && w.length < d.length) d = w; }
+        if (d.length > 70000) reject(new Error("Logo trop lourd : choisissez une image plus simple.")); else resolve(d);
+      };
+      img.onerror = () => { URL.revokeObjectURL(u); reject(new Error("Image illisible.")); };
+      img.src = u;
+    });
+  }
+  $("flogofile").onchange = async () => {
+    const f = $("flogofile").files[0]; $("flogofile").value = ""; if (!f || logoIdx < 0) return;
+    try { const name = fournisseurs[logoIdx]; styles[name] = Object.assign({}, styles[name], { l: await shrinkLogo(f) }); drawF(); toast("Logo ajouté : pensez à enregistrer la liste."); }
+    catch (e) { toast(e.message, "err"); }
+  };
+  $("fchips").addEventListener("input", (e) => {
+    const i = e.target.dataset.fc; if (i === undefined) return;
+    const name = fournisseurs[+i]; styles[name] = Object.assign({}, styles[name], { c: e.target.value });
+    const p = e.target.closest(".frow").querySelector(".fprev"); RC.setStyles(styles, fournisseurs);
+    p.style.background = RC.fStyle(name).bg; p.style.color = RC.fStyle(name).fg;
+  });
+  $("fchips").addEventListener("change", (e) => { if (e.target.dataset.fc !== undefined) drawF(); });
+  $("fchips").onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    const d = b.dataset;
+    if (d.fl !== undefined) { logoIdx = +d.fl; $("flogofile").click(); return; }
+    if (d.flx !== undefined) { const n = fournisseurs[+d.flx]; delete (styles[n] || {}).l; drawF(); return; }
+    if (d.fcr !== undefined) { const n = fournisseurs[+d.fcr]; delete (styles[n] || {}).c; drawF(); return; }
+    if (d.rm !== undefined) { const n = fournisseurs[+d.rm]; fournisseurs.splice(+d.rm, 1); delete styles[n]; drawF(); }
+  };
+
   async function loadF() {
-    try { const c = await RC.api.config(); fournisseurs = c.fournisseurs || []; operateurs = c.operateurs || []; } catch (e) { fournisseurs = []; operateurs = []; }
+    try { const c = await RC.api.config(); fournisseurs = c.fournisseurs || []; operateurs = c.operateurs || []; styles = c.styles || {}; } catch (e) { fournisseurs = []; operateurs = []; }
     drawList("f"); drawList("o");
   }
 
