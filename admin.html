@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration – Réception colis GMP</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { font-size: 16px; }
+  .wrap.wide { max-width: 1500px; }
+  .login { max-width: 420px; margin: 40px auto; }
+  .login label { display: block; font-weight: 700; font-size: .9rem; margin: 12px 0 4px; }
+  .login input { width: 100%; padding: 13px 14px; border: 2px solid var(--border); border-radius: 12px; font-size: 1.05rem; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat { background: var(--surface); border: 2px solid var(--border); border-radius: 14px; padding: 10px 18px; min-width: 130px; }
+  .stat b { display: block; font-size: 1.6rem; color: var(--blue-dark); }
+  .stat span { font-size: .8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .bar input[type=search], .bar select { padding: 10px 14px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface); font-size: 1rem; }
+  .bar input[type=search] { flex: 1; min-width: 220px; }
+  .tablewrap { overflow-x: auto; background: var(--surface); border: 2px solid var(--border); border-radius: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th { position: sticky; top: 0; background: var(--blue-light); color: var(--blue-dark); text-align: left; padding: 10px 10px; white-space: nowrap; border-bottom: 2px solid var(--blue); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: #f7fbfd; }
+  td.nowrap { white-space: nowrap; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 700; font-size: .8rem; white-space: nowrap; }
+  .pill.att { background: var(--blue-light); color: var(--blue-dark); } .pill.ok { background: var(--green-light); color: var(--green); } .pill.warn { background: var(--orange-light); color: var(--orange); } .pill.ko { background: var(--red-light); color: var(--red); }
+  .del { border: 0; background: none; color: var(--red); font-size: 1.1rem; padding: 4px 8px; }
+  .fchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .fchip { display: inline-flex; align-items: center; gap: 8px; background: var(--blue-light); color: var(--blue-dark); border-radius: 999px; padding: 8px 8px 8px 16px; font-weight: 700; }
+  .fchip button { border: 0; background: var(--surface); color: var(--red); width: 28px; height: 28px; border-radius: 50%; font-weight: 900; }
+  .addrow { display: flex; gap: 10px; }
+  .addrow input { flex: 1; padding: 12px 14px; border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; }
+</style>
+</head>
+<body>
+<div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Administration</h1><button class="btn ghost small" id="logout" hidden>Se déconnecter</button><a class="back" href="index.html">← Accueil</a></div>
+
+<div class="wrap" id="loginview" hidden>
+  <form class="card login" id="loginform">
+    <h2>Connexion</h2>
+    <p class="note" style="margin-top:0">Compte administrateur de l'appli « Réception colis » (différent du compte du portail).</p>
+    <label for="em">Adresse e-mail</label><input id="em" type="email" required autocomplete="username">
+    <label for="pw">Mot de passe</label><input id="pw" type="password" required autocomplete="current-password">
+    <div id="loginerr" class="err"></div>
+    <button class="btn" style="width:100%;margin-top:16px">Se connecter</button>
+  </form>
+</div>
+
+<div class="wrap wide" id="adminview" hidden>
+  <div class="tabs"><button class="tab on" data-tab="cmd">Commandes et réceptions</button><button class="tab" data-tab="four">Fournisseurs courants</button></div>
+
+  <section id="p-cmd">
+    <div class="stats" id="stats"></div>
+    <div class="bar">
+      <input type="search" id="q" placeholder="🔍 Nom, e-mail, fournisseur, contenu, n°…">
+      <select id="fstat"><option value="">Tous les statuts</option><option value="attendu">⏳ Attendues</option><option value="recu">✅ Réceptionnées</option><option value="incomplete">⚠️ Incomplètes</option><option value="abime">💥 Abîmées</option></select>
+      <select id="ffour"><option value="">Tous les fournisseurs</option></select>
+      <button class="btn ghost small" id="refresh">↻ Actualiser</button>
+      <button class="btn small" id="export">📊 Exporter en Excel</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr>
+      <th>Déclarée le</th><th>Nom</th><th>Prénom</th><th>E-mail</th><th>Fournisseur</th><th>Contenu</th><th>N° commande</th>
+      <th>Statut</th><th>Reçue le</th><th>Colis</th><th>Complète</th><th>Abîmée</th><th>Lieu</th><th>Opérateur</th><th>Commentaire</th><th>Mail</th><th>Photo</th><th></th>
+    </tr></thead><tbody id="rows"></tbody></table></div>
+    <p class="note" id="count"></p>
+  </section>
+
+  <section id="p-four" hidden>
+    <div class="card" style="max-width:760px">
+      <h2>Fournisseurs courants</h2>
+      <p class="note" style="margin-top:0">Proposés en un clic dans le formulaire « J'attends une commande ». Le champ reste libre : un fournisseur absent de cette liste peut toujours être saisi.</p>
+      <div class="fchips" id="fchips"></div>
+      <div class="addrow"><input id="newf" placeholder="Ajouter un fournisseur…" maxlength="80"><button class="btn" id="addf">Ajouter</button></div>
+      <div class="actions"><button class="btn" id="savef">💾 Enregistrer la liste</button></div>
+    </div>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="xlsx.full.min.js"></script>
+<script>
+(function () {
+  const { esc, fmtDate, toast, demo, PB } = RC;
+  const $ = (id) => document.getElementById(id);
+  let token = "", rows = [], fournisseurs = [], byId = {};
+  try { token = sessionStorage.getItem("rc_admin_token") || ""; } catch (e) { /* */ }
+
+  // ---------- API protégée (PocketBase) ----------
+  async function pb(path, opts) {
+    const r = await fetch(PB + path, Object.assign({}, opts, { headers: Object.assign({ "Content-Type": "application/json", Authorization: token }, (opts || {}).headers) }));
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401 || r.status === 403) { logout(); throw new Error("Session expirée, reconnectez-vous."); }
+    if (!r.ok) throw new Error(j.message || "Erreur " + r.status);
+    return j;
+  }
+  async function fetchAll() {
+    if (demo) return RC.demoAdmin.all();
+    const out = []; let page = 1, total = 1;
+    while (page <= total) {
+      const j = await pb("/api/collections/colis/records?perPage=500&sort=-created&page=" + page);
+      out.push(...j.items); total = j.totalPages; page++;
+    }
+    return out;
+  }
+
+  // ---------- connexion ----------
+  function logout() {
+    token = ""; try { sessionStorage.removeItem("rc_admin_token"); } catch (e) { /* */ }
+    $("adminview").hidden = true; $("loginview").hidden = false; $("logout").hidden = true;
+  }
+  $("logout").onclick = logout;
+  $("loginform").onsubmit = async (ev) => {
+    ev.preventDefault(); $("loginerr").textContent = "";
+    try {
+      const r = await fetch(PB + "/api/collections/colis_admins/auth-with-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identity: $("em").value.trim(), password: $("pw").value }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(r.status === 400 ? "E-mail ou mot de passe incorrect." : (j.message || "Erreur " + r.status));
+      token = j.token; try { sessionStorage.setItem("rc_admin_token", token); } catch (e) { /* */ }
+      $("pw").value = ""; start();
+    } catch (e) { $("loginerr").textContent = e.message; }
+  };
+
+  // ---------- données ----------
+  const val = (r) => {
+    const mail = r.statut !== "recu" ? "" : r.mail_erreur ? "echec" : r.mail_envoye ? "envoye" : "attente";
+    const holder = r.photo_rec ? byId[r.photo_rec] : null;
+    let photoUrl = "";
+    if (holder && holder.photo) photoUrl = demo ? "#" : PB + "/api/files/colis/" + holder.id + "/" + holder.photo;
+    return Object.assign({}, r, { mail, photoUrl, hasPhoto: !!r.photo_rec || r.photo === true });
+  };
+  const dt = (iso) => iso ? new Date(String(iso).replace(" ", "T")).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "";
+
+  async function load() {
+    try {
+      const raw = await fetchAll();
+      byId = {}; raw.forEach((r) => { byId[r.id] = r; });
+      rows = raw.map(val);
+      const fs = [...new Set(rows.map((r) => r.fournisseur).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+      const cur = $("ffour").value;
+      $("ffour").innerHTML = '<option value="">Tous les fournisseurs</option>' + fs.map((f) => `<option>${esc(f)}</option>`).join("");
+      $("ffour").value = fs.includes(cur) ? cur : "";
+      render();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  function filtered() {
+    const q = norm($("q").value).split(/\s+/).filter(Boolean), st = $("fstat").value, fo = $("ffour").value;
+    return rows.filter((r) => {
+      if (fo && r.fournisseur !== fo) return false;
+      if (st === "attendu" && r.statut !== "attendu") return false;
+      if (st === "recu" && r.statut !== "recu") return false;
+      if (st === "incomplete" && !(r.statut === "recu" && r.etat === "incomplete")) return false;
+      if (st === "abime" && !(r.statut === "recu" && r.abime)) return false;
+      if (q.length) { const h = norm([r.prenom, r.nom, r.email, r.fournisseur, r.contenu, r.reference, r.lieu, r.operateur, r.commentaire].join(" ")); if (!q.every((w) => h.includes(w))) return false; }
+      return true;
+    });
+  }
+
+  const MAIL = { envoye: ["ok", "Envoyé"], attente: ["warn", "En attente"], echec: ["ko", "Échec"] };
+  function render() {
+    const recu = rows.filter((r) => r.statut === "recu");
+    $("stats").innerHTML = [["Commandes", rows.length], ["Attendues", rows.length - recu.length], ["Réceptionnées", recu.length], ["Incomplètes", recu.filter((r) => r.etat === "incomplete").length], ["Abîmées", recu.filter((r) => r.abime).length]]
+      .map(([l, n]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
+    const list = filtered();
+    $("rows").innerHTML = list.map((r) => {
+      const rc = r.statut === "recu";
+      return `<tr><td class="nowrap">${dt(r.created)}</td><td><b>${esc((r.nom || "").toUpperCase())}</b></td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.fournisseur)}</td><td>${esc(r.contenu)}</td><td>${esc(r.reference)}</td>
+        <td>${rc ? '<span class="pill ok">Réceptionnée</span>' : '<span class="pill att">Attendue</span>'}</td>
+        <td class="nowrap">${rc ? dt(r.recu_le) : ""}</td><td>${rc ? r.nb_recus : ""}</td>
+        <td>${rc ? (r.etat === "complete" ? '<span class="pill ok">Oui</span>' : '<span class="pill warn">Non</span>') : ""}</td>
+        <td>${rc ? (r.abime ? '<span class="pill warn">Oui</span>' : "Non") : ""}</td>
+        <td>${esc(r.lieu)}</td><td>${esc(r.operateur)}</td><td>${esc(r.commentaire)}</td>
+        <td>${rc ? `<span class="pill ${MAIL[r.mail][0]}" ${r.mail_erreur ? `title="${esc(r.mail_erreur)}"` : ""}>${MAIL[r.mail][1]}</span>` : ""}</td>
+        <td>${r.photoUrl && r.photoUrl !== "#" ? `<a href="${esc(r.photoUrl)}" target="_blank">📷 Voir</a>` : r.hasPhoto ? "📷" : ""}</td>
+        <td><button class="del" title="Supprimer cette ligne" data-del="${esc(r.id)}">🗑</button></td></tr>`;
+    }).join("") || '<tr><td colspan="18" class="note" style="text-align:center;padding:30px">Aucune ligne.</td></tr>';
+    $("count").textContent = list.length + " ligne" + (list.length > 1 ? "s" : "") + " affichée" + (list.length > 1 ? "s" : "") + " sur " + rows.length + ".";
+    $("export").textContent = "📊 Exporter en Excel (" + list.length + ")";
+  }
+
+  ["q", "fstat", "ffour"].forEach((id) => $(id).addEventListener(id === "q" ? "input" : "change", render));
+  $("refresh").onclick = load;
+  $("rows").onclick = async (e) => {
+    const b = e.target.closest("[data-del]"); if (!b) return;
+    const r = rows.find((x) => x.id === b.dataset.del);
+    if (!confirm("Supprimer définitivement cette ligne ?\n\n" + (r.nom || "") + " " + (r.prenom || "") + " — " + (r.fournisseur || ""))) return;
+    try { if (demo) RC.demoAdmin.remove(r.id); else await pb("/api/collections/colis/records/" + r.id, { method: "DELETE" }); toast("Ligne supprimée."); load(); } catch (err) { toast(err.message, "err"); }
+  };
+
+  // ---------- export Excel ----------
+  $("export").onclick = () => {
+    const list = filtered();
+    if (!list.length) { toast("Rien à exporter.", "err"); return; }
+    const data = list.map((r) => {
+      const rc = r.statut === "recu";
+      return {
+        "Déclarée le": dt(r.created), "Nom": r.nom, "Prénom": r.prenom, "E-mail": r.email, "Fournisseur": r.fournisseur, "Contenu": r.contenu, "N° commande": r.reference,
+        "Statut": rc ? "Réceptionnée" : "Attendue", "Reçue le": rc ? dt(r.recu_le) : "", "Colis reçus": rc ? r.nb_recus : "",
+        "Complète": rc ? (r.etat === "complete" ? "Oui" : "Non") : "", "Abîmée": rc ? (r.abime ? "Oui" : "Non") : "",
+        "Lieu de mise à disposition": r.lieu, "Opérateur": r.operateur, "Commentaire": r.commentaire,
+        "Mail": rc ? MAIL[r.mail][1] : "", "Photo": r.photoUrl && r.photoUrl !== "#" ? r.photoUrl : (r.hasPhoto ? "oui" : ""),
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = Object.keys(data[0]).map((k) => ({ wch: Math.min(40, Math.max(k.length + 2, ...data.map((d) => String(d[k] == null ? "" : d[k]).length + 2))) }));
+    ws["!autofilter"] = { ref: ws["!ref"] };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Colis");
+    XLSX.writeFile(wb, "receptions-colis-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+  };
+
+  // ---------- fournisseurs ----------
+  function drawF() {
+    $("fchips").innerHTML = fournisseurs.map((f, i) => `<span class="fchip">${esc(f)}<button title="Retirer" data-rm="${i}">×</button></span>`).join("") || '<span class="note">Aucun fournisseur : le formulaire utilisera la liste de config.js.</span>';
+  }
+  function addF() {
+    const v = $("newf").value.trim(); if (!v) return;
+    if (!fournisseurs.some((f) => f.toLowerCase() === v.toLowerCase())) fournisseurs.push(v);
+    $("newf").value = ""; drawF(); $("newf").focus();
+  }
+  $("addf").onclick = addF;
+  $("newf").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addF(); } };
+  $("fchips").onclick = (e) => { const b = e.target.closest("[data-rm]"); if (b) { fournisseurs.splice(+b.dataset.rm, 1); drawF(); } };
+  $("savef").onclick = async () => {
+    try {
+      if (demo) RC.demoAdmin.setFournisseurs(fournisseurs);
+      else {
+        const j = await pb("/api/collections/colis_config/records?filter=" + encodeURIComponent("key='main'") + "&perPage=1");
+        const body = JSON.stringify({ data: { fournisseurs } });
+        if (j.items.length) await pb("/api/collections/colis_config/records/" + j.items[0].id, { method: "PATCH", body });
+        else await pb("/api/collections/colis_config/records", { method: "POST", body: JSON.stringify({ key: "main", data: { fournisseurs } }) });
+      }
+      toast("✅ Liste enregistrée.", "ok");
+    } catch (e) { toast(e.message, "err"); }
+  };
+  async function loadF() {
+    try { fournisseurs = (await RC.api.config()).fournisseurs || []; } catch (e) { fournisseurs = []; }
+    drawF();
+  }
+
+  document.querySelector(".tabs").onclick = (e) => {
+    const b = e.target.closest("[data-tab]"); if (!b) return;
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t === b));
+    $("p-cmd").hidden = b.dataset.tab !== "cmd"; $("p-four").hidden = b.dataset.tab !== "four";
+  };
+
+  function start() {
+    $("loginview").hidden = true; $("adminview").hidden = false; $("logout").hidden = demo;
+    loadF(); load();
+  }
+  if (demo || token) start(); else $("loginview").hidden = false;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J'attends une commande – GMP</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>J'attends une commande</h1><a class="back" href="index.html">← Accueil</a></div>
+<div class="wrap" style="max-width:820px">
+
+  <div class="card">
+    <h2>Déclarer ma commande</h2>
+    <p class="note" style="margin-top:0">Ces informations permettent à l'opérateur de reconnaître votre colis à son arrivée. Vous recevrez un e-mail dès qu'il est réceptionné.</p>
+    <form id="f" class="form" autocomplete="on">
+      <div><label for="prenom">Prénom</label><input id="prenom" required autocomplete="given-name"></div>
+      <div><label for="nom">Nom</label><input id="nom" required autocomplete="family-name"></div>
+      <div class="full"><label for="email">Adresse e-mail <small>(pour être prévenu(e))</small></label><input id="email" type="email" required autocomplete="email"></div>
+      <div class="full">
+        <label for="four">Fournisseur</label>
+        <input id="four" required list="fours" placeholder="Amazon, RS, Mouser…">
+        <datalist id="fours"></datalist>
+        <div class="chips" id="fourchips" style="margin-top:8px"></div>
+      </div>
+      <div class="full"><label for="contenu">Contenu de la commande <small>(en quelques mots)</small></label><input id="contenu" placeholder="Ex. roulements, vis M6, câbles"></div>
+      <div class="full"><label for="ref">N° de commande ou de projet <small>(facultatif)</small></label><input id="ref"></div>
+      <div class="full"><button class="btn" type="submit" style="width:100%">Enregistrer ma commande</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Mes commandes</h2>
+    <div id="mine" class="mine"><span class="note">Enregistrez une commande ci-dessus, ou saisissez votre e-mail pour retrouver les vôtres.</span></div>
+    <div style="margin-top:14px"><button class="btn ghost small" id="refresh">Actualiser</button></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const { api, esc, lsGet, lsSet, fmtDate, toast } = RC;
+  const $ = (id) => document.getElementById(id);
+
+  // mémorise l'identité (confort : pas besoin de la ressaisir)
+  const me = lsGet("rc_me", {});
+  ["prenom", "nom", "email"].forEach((k) => { if (me[k]) $(k).value = me[k]; });
+
+  function setFournisseurs(list) {
+    $("fours").innerHTML = list.map((f) => `<option value="${esc(f)}">`).join("");
+    $("fourchips").innerHTML = list.map((f) => `<button type="button" class="chip" data-f="${esc(f)}">${esc(f)}</button>`).join("");
+  }
+  setFournisseurs(window.FOURNISSEURS || []);                                       // valeurs de secours (config.js)
+  api.config().then((c) => { if (c.fournisseurs && c.fournisseurs.length) setFournisseurs(c.fournisseurs); }).catch(() => {});
+  $("fourchips").onclick = (e) => { const b = e.target.closest("[data-f]"); if (b) { $("four").value = b.dataset.f; $("contenu").focus(); } };
+
+  async function loadMine() {
+    const email = $("email").value.trim();
+    const box = $("mine");
+    if (!email) return;
+    try {
+      const { items } = await api.mine({ email });
+      if (!items.length) { box.innerHTML = '<span class="note">Aucune commande en cours pour cette adresse.</span>'; return; }
+      box.innerHTML = items.map((r) => {
+        let badge = '<span class="badge att">⏳ En attente</span>', extra = "";
+        if (r.statut === "recu") {
+          const bad = r.etat === "incomplete" || r.abime;
+          badge = `<span class="badge ${bad ? "warn" : "ok"}">${bad ? "⚠️" : "✅"} Arrivée</span>`;
+          extra = `<br>📍 ${esc(r.lieu)} — ${(r.etat === "complete" ? "complète" : "incomplète") + ", " + r.nb_recus + " colis"}${r.abime ? ", abîmée" : ""}${r.commentaire ? "<br>💬 " + esc(r.commentaire) : ""}`;
+        }
+        return `<div class="row"><div class="t"><b>${esc(r.fournisseur)}</b> — ${esc(r.contenu || "")}${r.reference ? " <small>(" + esc(r.reference) + ")</small>" : ""}${extra}<br><small class="note">Déclarée le ${fmtDate(r.created)}</small></div>${badge}${r.statut === "attendu" ? `<button class="btn ghost small" data-cancel="${esc(r.id)}">Annuler</button>` : ""}</div>`;
+      }).join("");
+    } catch (e) { box.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  }
+
+  $("f").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const body = { prenom: $("prenom").value.trim(), nom: $("nom").value.trim(), email: $("email").value.trim(), fournisseur: $("four").value.trim(), contenu: $("contenu").value.trim(), reference: $("ref").value.trim() };
+    try {
+      await api.declare(body);
+      lsSet("rc_me", { prenom: body.prenom, nom: body.nom, email: body.email });
+      toast("✅ Commande enregistrée. Vous serez prévenu(e) par e-mail.", "ok");
+      ["four", "contenu", "ref"].forEach((k) => $(k).value = "");
+      loadMine();
+    } catch (e) { toast(e.message, "err"); }
+  };
+
+  $("mine").onclick = async (ev) => {
+    const b = ev.target.closest("[data-cancel]"); if (!b) return;
+    if (!confirm("Annuler cette commande ?")) return;
+    try { await api.cancel({ id: b.dataset.cancel, email: $("email").value.trim() }); toast("Commande annulée."); loadMine(); } catch (e) { toast(e.message, "err"); }
+  };
+  $("refresh").onclick = () => { if (!$("email").value.trim()) { toast("Saisissez votre e-mail ci-dessus.", "err"); $("email").focus(); } else loadMine(); };
+  $("email").addEventListener("change", loadMine);
+  loadMine();
+})();
+</script>
+</body>
+</html>

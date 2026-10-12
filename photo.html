@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photo de la réception – GMP</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📷</text></svg>">
+<link rel="stylesheet" href="style.css">
+<style>
+  .ph { max-width: 520px; margin: 0 auto; padding: 16px; text-align: center; }
+  .ph .who { background: var(--surface); border: 2px solid var(--border); border-radius: 14px; padding: 10px 14px; margin: 12px 0; text-align: left; font-size: .95rem; }
+  .ph .big { width: 100%; font-size: 1.3rem; padding: 22px; margin-top: 10px; }
+  .ph img.prev { width: 100%; border-radius: 16px; border: 3px solid var(--blue); margin: 10px 0; display: block; background: #000; }
+  .ph .row { display: flex; gap: 10px; margin-top: 10px; }
+  .ph .row .btn { flex: 1; }
+  .ph .msg { font-size: 1.2rem; font-weight: 700; padding: 30px 10px; }
+  .ph .msg.ok { color: var(--green); }
+  .btn.red { background: var(--surface); color: var(--red); border: 2px solid var(--red); }
+</style>
+</head>
+<body>
+<div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Photo de la réception</h1></div>
+<div class="ph" id="ph"><p class="note">Chargement…</p></div>
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const { api, esc } = RC;
+  const $ = (id) => document.getElementById(id);
+  const lot = new URLSearchParams(location.search).get("lot") || "";
+  let info = null, blob = null, url = "";
+
+  const view = (html) => { $("ph").innerHTML = html; };
+  const who = () => `<div class="who">${info.items.map((i) => `<b>${esc((i.nom || "").toUpperCase())} ${esc(i.prenom)}</b> <span class="note">· ${esc(i.fournisseur)}</span>`).join("<br>")}</div>`;
+
+  function home() {
+    if (url) { URL.revokeObjectURL(url); url = ""; }
+    blob = null;
+    view(`<p style="font-size:1.1rem">Photographiez la commande réceptionnée.<br>La photo sera jointe au mail envoyé à :</p>${who()}
+      <button class="btn big" id="take">📷 Prendre la photo</button>`);
+    $("take").onclick = () => $("cam").click();
+  }
+
+  function preview() {
+    view(`<img class="prev" src="${url}" alt="Aperçu de la photo">
+      <button class="btn big" id="ok">✅ Valider et envoyer</button>
+      <div class="row"><button class="btn ghost" id="again">🔄 Reprendre</button><button class="btn red" id="cancel">✖ Annuler</button></div>
+      <div id="err" class="err"></div>`);
+    $("again").onclick = () => $("cam").click();
+    $("cancel").onclick = () => {
+      if (!confirm("Annuler l'opération ? Aucune photo ne sera envoyée.")) return;
+      if (url) URL.revokeObjectURL(url);
+      view(`<div class="msg">Opération annulée.</div><p class="note">La réception reste enregistrée. L'opérateur peut envoyer le mail sans photo depuis le PC (sinon il part automatiquement au bout de quelques minutes).</p>
+        <button class="btn ghost" id="restart">Recommencer</button>`);
+      $("restart").onclick = home;
+    };
+    $("ok").onclick = async () => {
+      const b = $("ok"); b.disabled = true; b.textContent = "Envoi en cours…";
+      try {
+        const res = await api.photo(lot, blob);
+        view(`<div class="msg ok">✅ Photo envoyée !</div><p>${res.erreur ? "⚠️ La photo est enregistrée mais le mail n'a pas pu partir : prévenez le responsable." : "Le mail est parti avec la photo. Vous pouvez fermer cette page."}</p>`);
+      } catch (e) { b.disabled = false; b.textContent = "✅ Valider et envoyer"; $("err").textContent = e.message; }
+    };
+  }
+
+  // Réduit la photo (max 1600 px, JPEG) pour un envoi rapide en 4G/wifi
+  function shrink(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image(), u = URL.createObjectURL(file);
+      img.onload = () => {
+        const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u);
+        c.toBlob((bl) => bl ? resolve(bl) : reject(new Error("Photo illisible")), "image/jpeg", 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(u); reject(new Error("Photo illisible")); };
+      img.src = u;
+    });
+  }
+
+  $("cam").onchange = async () => {
+    const f = $("cam").files[0]; $("cam").value = "";
+    if (!f) return;
+    try {
+      blob = await shrink(f);
+      if (url) URL.revokeObjectURL(url);
+      url = URL.createObjectURL(blob);
+      preview();
+    } catch (e) { alert(e.message); }
+  };
+
+  (async function init() {
+    if (!lot) { view('<div class="msg">Lien invalide : scannez à nouveau le QR code.</div>'); return; }
+    try {
+      info = await api.lot(lot);
+      if (info.sent) { view(`<div class="msg ok">Les mails de cette réception sont déjà partis.</div>${who()}`); return; }
+      home();
+    } catch (e) { view(`<div class="msg">${esc(e.message)}</div><p class="note">Scannez à nouveau le QR code.</p>`); }
+  })();
+})();
+</script>
+</body>
+</html>

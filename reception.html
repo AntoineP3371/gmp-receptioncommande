@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réception colis – opérateurs GMP</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Je réceptionne un colis</h1><a class="back" href="index.html">← Accueil</a></div>
+<div class="wrap">
+  <div class="toolbar">
+    <div class="searchrow">
+      <input id="q" type="search" placeholder="🔍 Rechercher : nom, fournisseur, contenu, n° de commande…" autocomplete="off" inputmode="search">
+      <button class="btn ghost" id="clear">Effacer</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-tab="attendu">À réceptionner <span id="cA"></span></button>
+      <button class="tab" data-tab="recu">Déjà réceptionnés (7 j) <span id="cR"></span></button>
+    </div>
+    <div class="chips" id="chipsF"></div>
+    <div class="chips" id="chipsA"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="selbar" id="selbar" hidden>
+  <div><b id="selcount"></b></div>
+  <div style="display:flex;gap:10px"><button class="btn ghost" id="selclear">Tout désélectionner</button><button class="btn" id="selgo">Valider la réception →</button></div>
+</div>
+
+<div class="overlay" id="ov" hidden><div class="sheet" id="sheet"></div></div>
+
+<script src="config.js"></script>
+<script src="qrcode.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const { api, esc, lsGet, lsSet, fmtDate, nomComplet, toast } = RC;
+  const $ = (id) => document.getElementById(id);
+  let items = [], tab = "attendu", fFour = "", fLet = "", q = "";
+  const sel = new Map();           // id -> nb_recus
+  let form = null;                 // état de la fenêtre de validation
+
+  const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+  async function load() {
+    try { items = (await api.list()).items; } catch (e) { toast("Chargement impossible : " + e.message, "err"); }
+    render();
+  }
+
+  function visibleBase() { return items.filter((r) => r.statut === tab); }
+  function matches(r) {
+    if (fFour && r.fournisseur !== fFour) return false;
+    if (fLet && norm(r.nom).charAt(0).toUpperCase() !== fLet) return false;
+    if (q) {
+      const hay = norm([r.prenom, r.nom, r.fournisseur, r.contenu, r.reference].join(" "));
+      return norm(q).split(/\s+/).every((w) => hay.includes(w));
+    }
+    return true;
+  }
+
+  function render() {
+    const base = visibleBase();
+    $("cA").textContent = "(" + items.filter((r) => r.statut === "attendu").length + ")";
+    $("cR").textContent = "(" + items.filter((r) => r.statut === "recu").length + ")";
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === tab));
+
+    // chips fournisseurs (avec compteurs)
+    const cnt = {}; base.forEach((r) => { cnt[r.fournisseur] = (cnt[r.fournisseur] || 0) + 1; });
+    const fours = Object.keys(cnt).sort((a, b) => a.localeCompare(b, "fr"));
+    if (fFour && !cnt[fFour]) fFour = "";
+    $("chipsF").innerHTML = '<span class="lbl">Fournisseur</span>' + (fours.length ? "" : '<span class="note">—</span>') +
+      fours.map((f) => `<button class="chip ${f === fFour ? "on" : ""}" data-four="${esc(f)}">${esc(f)}<small>${cnt[f]}</small></button>`).join("");
+
+    // alphabet sur l'initiale du nom
+    const letters = new Set(base.map((r) => norm(r.nom).charAt(0).toUpperCase()));
+    if (fLet && !letters.has(fLet)) fLet = "";
+    $("chipsA").innerHTML = '<span class="lbl">Nom commence par</span>' +
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => `<button class="chip az ${l === fLet ? "on" : ""} ${letters.has(l) ? "" : "dim"}" data-let="${l}">${l}</button>`).join("");
+
+    const list = base.filter(matches);
+    $("grid").innerHTML = list.length ? list.map(tile).join("") :
+      `<div class="empty">${base.length ? "Aucun résultat avec ces filtres." : tab === "attendu" ? "Aucune commande en attente. 🎉" : "Rien de réceptionné récemment."}</div>`;
+
+    // barre de sélection
+    const n = [...sel.keys()].filter((id) => items.some((r) => r.id === id && r.statut === "attendu")).length;
+    $("selbar").hidden = n === 0;
+    $("selcount").textContent = n + " commande" + (n > 1 ? "s" : "") + " sélectionnée" + (n > 1 ? "s" : "");
+  }
+
+  function tile(r) {
+    if (r.statut === "recu") {
+      const bad = r.etat === "incomplete" || r.abime;
+      return `<div class="tile done"><div class="who">${esc(nomComplet(r))}</div><span class="four">${esc(r.fournisseur)}</span>
+        <div class="what">${esc(r.contenu)}</div>
+        <div class="state ${bad ? "warn" : "ok"}">${bad ? "⚠️" : "✅"} ${r.etat === "complete" ? "Complète" : "Incomplète"} · ${r.nb_recus} colis${r.abime ? " · abîmée" : ""}</div>
+        <div class="meta"><span>📍 ${esc(r.lieu)}</span><span>${fmtDate(r.recu_le)}${r.operateur ? " · " + esc(r.operateur) : ""}</span></div></div>`;
+    }
+    const on = sel.has(r.id);
+    return `<button class="tile ${on ? "sel" : ""}" data-id="${esc(r.id)}"><span class="check">${on ? "✓" : ""}</span>
+      <div class="who">${esc(nomComplet(r))}</div><span class="four">${esc(r.fournisseur)}</span>
+      ${r.contenu ? `<div class="what">${esc(r.contenu)}</div>` : ""}
+      <div class="meta">${r.reference ? `<span>N° ${esc(r.reference)}</span>` : ""}<span>déclarée le ${fmtDate(r.created)}</span></div></button>`;
+  }
+
+  // ---------- événements de la liste ----------
+  $("grid").onclick = (e) => {
+    const t = e.target.closest(".tile[data-id]"); if (!t) return;
+    const id = t.dataset.id;
+    if (sel.has(id)) sel.delete(id); else sel.set(id, 1);
+    render();
+  };
+  $("chipsF").onclick = (e) => { const b = e.target.closest("[data-four]"); if (b) { fFour = fFour === b.dataset.four ? "" : b.dataset.four; render(); } };
+  $("chipsA").onclick = (e) => { const b = e.target.closest("[data-let]"); if (b) { fLet = fLet === b.dataset.let ? "" : b.dataset.let; render(); } };
+  document.querySelector(".tabs").onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) { tab = b.dataset.tab; render(); } };
+  $("q").oninput = () => { q = $("q").value; render(); };
+  $("clear").onclick = () => { q = ""; fFour = ""; fLet = ""; $("q").value = ""; render(); };
+  $("selclear").onclick = () => { sel.clear(); render(); };
+  $("selgo").onclick = openForm;
+
+  // ---------- fenêtre de validation ----------
+  function openForm() {
+    const picked = items.filter((r) => sel.has(r.id) && r.statut === "attendu");
+    if (!picked.length) return;
+    form = { picked, etat: "complete", abime: false, lieu: "", commentaire: "", operateur: lsGet("rc_operateur", ""), err: "" };
+    drawForm();
+    $("ov").hidden = false;
+  }
+  function drawForm() {
+    const f = form;
+    $("sheet").innerHTML = `
+      <h2>Valider la réception</h2>
+      <h3 style="margin-top:0">Combien de colis reçus ? <span class="note" style="text-transform:none">(par commande)</span></h3>
+      <div class="reclist">${f.picked.map((r) => `
+        <div class="recrow"><div class="t"><b>${esc(nomComplet(r))}</b><small>${esc(r.fournisseur)}${r.contenu ? " — " + esc(r.contenu) : ""}</small></div>
+        <div class="stepper"><button data-dec="${esc(r.id)}">−</button><span>${sel.get(r.id)} colis</span><button data-inc="${esc(r.id)}">+</button></div></div>`).join("")}
+      </div>
+      <h3>La commande est…</h3>
+      <div class="choices">
+        <button class="choice good ${f.etat === "complete" ? "on" : ""}" data-etat="complete">✅ Complète</button>
+        <button class="choice bad ${f.etat === "incomplete" ? "on" : ""}" data-etat="incomplete">⚠️ Incomplète</button>
+      </div>
+      <h3>État du colis</h3>
+      <div class="choices">
+        <button class="choice good ${!f.abime ? "on" : ""}" data-abime="0">👍 Intact</button>
+        <button class="choice bad ${f.abime ? "on" : ""}" data-abime="1">💥 Abîmé</button>
+      </div>
+      <h3>Mis à disposition à…</h3>
+      <div class="choices">${(window.LIEUX || []).map((l) => `<button class="choice ${f.lieu === l ? "on" : ""}" data-lieu="${esc(l)}">📍 ${esc(l)}</button>`).join("")}</div>
+      <h3>Commentaire <span class="note" style="text-transform:none">(facultatif)</span></h3>
+      <textarea id="com" rows="2" placeholder="Ex. boîte écrasée, il manque la notice…">${esc(f.commentaire)}</textarea>
+      <h3>Opérateur <span class="note" style="text-transform:none">(facultatif)</span></h3>
+      <input type="text" id="op" placeholder="Votre prénom" value="${esc(f.operateur)}">
+      ${f.err ? `<div class="err">${esc(f.err)}</div>` : ""}
+      <div class="actions"><button class="btn ghost" id="fcancel">Annuler</button><button class="btn" id="fsend">📧 Valider et prévenir</button></div>`;
+  }
+  function keepText() { if ($("com")) { form.commentaire = $("com").value; form.operateur = $("op").value; } }
+
+  $("sheet").onclick = async (e) => {
+    const b = e.target.closest("button"); if (!b || !form) return;
+    keepText();
+    const d = b.dataset;
+    if (d.etat) form.etat = d.etat;
+    else if (d.abime != null && d.abime !== "") form.abime = d.abime === "1";
+    else if (d.lieu) form.lieu = d.lieu;
+    else if (d.inc || d.dec) {
+      const r = items.find((x) => x.id === (d.inc || d.dec));
+      sel.set(r.id, Math.max(1, Math.min(99, sel.get(r.id) + (d.inc ? 1 : -1))));
+    }
+    else if (b.id === "fcancel" || b.id === "fclose") { $("ov").hidden = true; form = null; clearInterval(pollTimer); await load(); return; }
+    else if (b.id === "fnophoto") {
+      b.disabled = true;
+      try { await api.sendNow(form.lot); toast("Mails envoyés sans photo.", "ok"); } catch (err) { toast(err.message, "err"); b.disabled = false; }
+      return;
+    }
+    else if (b.id === "fsend") { await send(); return; }
+    drawForm();
+  };
+
+  async function send() {
+    if (!form.lieu) { form.err = "Choisissez le lieu de mise à disposition."; drawForm(); return; }
+    lsSet("rc_operateur", form.operateur.trim());
+    const btn = $("fsend"); btn.disabled = true; btn.textContent = "Envoi…";
+    try {
+      const res = await api.receive({
+        items: form.picked.map((r) => ({ id: r.id, nb_recus: sel.get(r.id) })),
+        etat: form.etat, abime: form.abime, lieu: form.lieu, commentaire: form.commentaire.trim(), operateur: form.operateur.trim(),
+      });
+      const ko = res.results.filter((r) => r.error);
+      form.picked.forEach((r) => sel.delete(r.id));
+      if (ko.length) toast(ko.length + " commande(s) non traitée(s) : " + ko[0].error, "err");
+      await load();
+      if (res.lot) step2(res.lot); else { $("ov").hidden = true; form = null; }
+    } catch (e) { form.err = e.message; drawForm(); }
+  }
+
+  // ---------- étape 2 : photo par QR code ----------
+  let pollTimer = null;
+  function step2(lot) {
+    const photoUrl = new URL("photo.html?lot=" + encodeURIComponent(lot), location.href).href;
+    form = { step2: true, lot };
+    let qrHtml = "";
+    try { const qr = qrcode(0, "M"); qr.addData(photoUrl); qr.make(); qrHtml = qr.createImgTag(6, 8); } catch (e) { qrHtml = '<p class="err">QR code indisponible</p>'; }
+    $("sheet").innerHTML = `<h2>✅ Réception enregistrée</h2>
+      <p>Pour <b>joindre une photo</b> au mail, scannez ce QR code avec un téléphone :</p>
+      <div class="qrbox">${qrHtml}</div>
+      ${RC.demo ? `<p class="note" style="text-align:center">Mode démo : <a href="${esc(photoUrl)}" target="_blank">ouvrir la page photo dans ce navigateur</a></p>` : ""}
+      <div id="lotstate" class="lotstate">⏳ En attente de la photo…</div>
+      <div id="lotmails"></div>
+      <div class="actions"><button class="btn ghost" id="fnophoto">Envoyer sans photo</button><button class="btn" id="fclose">Terminer</button></div>
+      <p class="note" style="margin-bottom:0">Sans photo, le mail part tout seul au bout de 10 minutes.</p>`;
+    $("ov").hidden = false;
+    clearInterval(pollTimer);
+    const poll = async () => {
+      if (!form || form.lot !== lot || $("ov").hidden) { clearInterval(pollTimer); return; }
+      try {
+        const st = await api.lot(lot);
+        if (st.sent) {
+          clearInterval(pollTimer);
+          $("lotstate").className = "lotstate ok";
+          $("lotstate").textContent = st.erreur ? "⚠️ Réception enregistrée, mais le mail n'a pas pu partir (réglage SMTP ?)." : (st.photo ? "✅ Photo reçue, mails envoyés avec la photo." : "✅ Mails envoyés (sans photo).");
+          if ($("fnophoto")) $("fnophoto").hidden = true;
+          if (RC.demo && st.demoMails) $("lotmails").innerHTML = '<p class="note">Mode démo — voici ce qui serait parti :</p>' + st.demoMails.map((m) => `<div class="mailprev">${esc(m)}</div>`).join("");
+        }
+      } catch (e) { /* nouvelle tentative au prochain tour */ }
+    };
+    pollTimer = setInterval(poll, 2500);
+  }
+
+  load();
+  setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée
+})();
+</script>
+</body>
+</html>

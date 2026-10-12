@@ -1,0 +1,151 @@
+/// <reference path="../pb_data/types.d.ts" />
+// Routes publiques de l'appli « Réception colis ».
+// Les adresses e-mail ne sortent jamais du serveur (sauf pour la personne qui retrouve SES colis).
+
+// GET /colis/list : colis attendus + réceptionnés récemment (sans e-mail)
+routerAdd("GET", "/colis/list", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const rows = $app.findRecordsByFilter("colis", "statut = 'attendu' || recu_le >= {:d}", "-created", 500, 0, { d: L.daysAgoIso(L.JOURS_HISTORIQUE) });
+  return e.json(200, { items: rows.map(L.pub) });
+});
+
+// GET /colis/config : fournisseurs courants (modifiables dans l'espace admin)
+routerAdd("GET", "/colis/config", (e) => {
+  let fournisseurs = [];
+  try {
+    const cfg = JSON.parse($app.findFirstRecordByData("colis_config", "key", "main").getString("data"));
+    if (Array.isArray(cfg.fournisseurs)) fournisseurs = cfg.fournisseurs.slice(0, 100).map((f) => String(f).slice(0, 80));
+  } catch (err) { /* pas encore de configuration */ }
+  return e.json(200, { fournisseurs: fournisseurs });
+});
+
+// POST /colis/declare : le commandeur déclare une commande attendue
+routerAdd("POST", "/colis/declare", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const b = e.requestInfo().body || {};
+  const prenom = L.clean(b.prenom, 60), nom = L.clean(b.nom, 60), email = L.clean(b.email, 120).toLowerCase();
+  const fournisseur = L.clean(b.fournisseur, 80);
+  if (!prenom || !nom) return e.json(400, { message: "Prénom et nom obligatoires." });
+  if (!L.validEmail(email)) return e.json(400, { message: "Adresse e-mail invalide." });
+  if (!fournisseur) return e.json(400, { message: "Fournisseur obligatoire." });
+  const rec = new Record($app.findCollectionByNameOrId("colis"));
+  rec.set("prenom", prenom);
+  rec.set("nom", nom);
+  rec.set("email", email);
+  rec.set("fournisseur", fournisseur);
+  rec.set("contenu", L.clean(b.contenu, 200));
+  rec.set("reference", L.clean(b.reference, 80));
+  rec.set("statut", "attendu");
+  $app.save(rec);
+  return e.json(200, { item: L.pub(rec) });
+});
+
+// POST /colis/receive : l'opérateur valide la réception d'un ou plusieurs colis.
+// Les mails NE partent PAS encore : ils attendent la photo (QR code) ou « envoyer sans photo ».
+// { items:[{id, nb_recus}], etat:"complete"|"incomplete", abime:bool, lieu, commentaire, operateur }
+routerAdd("POST", "/colis/receive", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const b = e.requestInfo().body || {};
+  const items = Array.isArray(b.items) ? b.items.slice(0, 50) : [];
+  const lieu = L.clean(b.lieu, 80);
+  if (!items.length) return e.json(400, { message: "Aucun colis sélectionné." });
+  if (!lieu) return e.json(400, { message: "Choisissez un lieu de mise à disposition." });
+  const etat = b.etat === "incomplete" ? "incomplete" : "complete";
+  const lot = $security.randomString(24);
+
+  const results = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i] || {};
+    let rec;
+    try { rec = $app.findRecordById("colis", String(it.id)); } catch (err) { results.push({ id: it.id, error: "Introuvable" }); continue; }
+    if (rec.getString("statut") === "recu") { results.push({ id: rec.id, error: "Déjà réceptionné" }); continue; }
+    rec.set("statut", "recu");
+    rec.set("recu_le", new Date().toISOString());
+    rec.set("etat", etat);
+    rec.set("nb_recus", Math.max(1, Math.min(99, parseInt(it.nb_recus, 10) || 1)));
+    rec.set("abime", !!b.abime);
+    rec.set("lieu", lieu);
+    rec.set("commentaire", L.clean(b.commentaire, 300));
+    rec.set("operateur", L.clean(b.operateur, 60));
+    rec.set("lot", lot);
+    rec.set("mail_envoye", false);
+    $app.save(rec);
+    results.push({ id: rec.id });
+  }
+  return e.json(200, { lot: lot, results: results });
+});
+
+// GET /colis/lot?lot=... : état d'un lot (page photo du téléphone + suivi sur le PC de l'opérateur)
+routerAdd("GET", "/colis/lot", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const rows = L.lotRecords(L.clean(e.request.url.query().get("lot"), 60));
+  if (!rows.length) return e.json(404, { message: "Lot introuvable." });
+  return e.json(200, {
+    items: rows.map((r) => ({ prenom: r.getString("prenom"), nom: r.getString("nom"), fournisseur: r.getString("fournisseur") })),
+    sent: rows.every((r) => r.getBool("mail_envoye")),
+    photo: rows.some((r) => !!r.getString("photo_rec")),
+    erreur: rows.map((r) => r.getString("mail_erreur")).filter((x) => x)[0] || "",
+  });
+});
+
+// POST /colis/send-now { lot } : envoie les mails sans photo
+routerAdd("POST", "/colis/send-now", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const rows = L.lotRecords(L.clean((e.requestInfo().body || {}).lot, 60));
+  if (!rows.length) return e.json(404, { message: "Lot introuvable." });
+  let erreur = "";
+  rows.forEach((r) => { if (!r.getBool("mail_envoye")) erreur = L.dispatch(r) || erreur; });
+  return e.json(200, { sent: true, erreur: erreur });
+});
+
+// POST /colis/photo (multipart : lot + photo) : enregistre la photo et envoie les mails du lot avec la photo
+routerAdd("POST", "/colis/photo", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const rows = L.lotRecords(L.clean(e.request.formValue("lot"), 60));
+  if (!rows.length) return e.json(404, { message: "Lot introuvable." });
+  if (rows.every((r) => r.getBool("mail_envoye"))) return e.json(409, { message: "Les mails de ce lot sont déjà partis." });
+  const files = e.findUploadedFiles("photo");
+  if (!files || !files.length) return e.json(400, { message: "Aucune photo reçue." });
+  const holder = rows[0];
+  holder.set("photo", files[0]);
+  $app.save(holder);
+  rows.forEach((r) => { r.set("photo_rec", holder.id); });
+  let erreur = "";
+  rows.forEach((r) => { if (!r.getBool("mail_envoye")) erreur = L.dispatch(r) || erreur; });
+  return e.json(200, { sent: true, erreur: erreur });
+});
+
+// POST /colis/mine { email } : le commandeur retrouve ses colis
+routerAdd("POST", "/colis/mine", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const email = L.clean((e.requestInfo().body || {}).email, 120).toLowerCase();
+  if (!L.validEmail(email)) return e.json(400, { message: "Adresse e-mail invalide." });
+  const rows = $app.findRecordsByFilter("colis", "email = {:e} && (statut = 'attendu' || recu_le >= {:d})", "-created", 100, 0, { e: email, d: L.daysAgoIso(30) });
+  return e.json(200, { items: rows.map(L.pub) });
+});
+
+// POST /colis/cancel { id, email } : annule une commande pas encore réceptionnée
+routerAdd("POST", "/colis/cancel", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const b = e.requestInfo().body || {};
+  let rec;
+  try { rec = $app.findRecordById("colis", String(b.id)); } catch (err) { return e.json(404, { message: "Introuvable." }); }
+  if (rec.getString("email") !== L.clean(b.email, 120).toLowerCase()) return e.json(403, { message: "Cette commande n'est pas à cette adresse." });
+  if (rec.getString("statut") !== "attendu") return e.json(400, { message: "Déjà réceptionnée." });
+  $app.delete(rec);
+  return e.json(200, { ok: true });
+});
+
+// Toutes les minutes : les mails restés sans photo depuis plus de 10 minutes partent sans photo
+cronAdd("colis_mails_en_attente", "* * * * *", () => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const rows = $app.findRecordsByFilter("colis", "statut = 'recu' && mail_envoye != true && recu_le < {:d}", "recu_le", 50, 0, { d: new Date(Date.now() - L.DELAI_PHOTO_MIN * 60000).toISOString() });
+  rows.forEach((r) => L.dispatch(r));
+});
+
+// Nettoyage quotidien (3 h) : supprime les réceptions de plus de 90 jours
+cronAdd("colis_purge", "0 3 * * *", () => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const old = $app.findRecordsByFilter("colis", "statut = 'recu' && recu_le < {:d}", "", 500, 0, { d: L.daysAgoIso(L.JOURS_PURGE) });
+  for (let i = 0; i < old.length; i++) $app.delete(old[i]);
+});
