@@ -1,6 +1,7 @@
 // Fonctions communes aux routes /colis/* (ce fichier n'est PAS un hook : il est chargé par require()).
 const JOURS_HISTORIQUE = 7;   // les colis réceptionnés restent visibles ce nombre de jours côté opérateurs
 const JOURS_PURGE = 90;       // puis sont supprimés au bout de ce nombre de jours
+const JOURS_PHOTO = 30;       // les photos (fichiers) sont supprimées au bout de ce nombre de jours, la fiche reste
 const DELAI_PHOTO_MIN = 10;   // sans photo après ce délai (minutes), le mail part quand même
 
 function clean(s, max) { return String(s == null ? "" : s).replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, max); }
@@ -19,7 +20,7 @@ function pub(r) {
     created: r.getString("created"), recu_le: r.getString("recu_le"), operateur: r.getString("operateur"),
     etat: r.getString("etat"), nb_recus: r.getInt("nb_recus"), abime: r.getBool("abime"),
     lieu: r.getString("lieu"), commentaire: r.getString("commentaire"),
-    photo: !!r.getString("photo_rec"),
+    photo_rec: r.getString("photo_rec"), photo_nom: r.getString("photo_nom"),
   };
 }
 
@@ -89,4 +90,4 @@ function lotRecords(lot) {
   return $app.findRecordsByFilter("colis", "lot = {:l} && statut = 'recu'", "created", 50, 0, { l: lot });
 }
 
-module.exports = { JOURS_HISTORIQUE, JOURS_PURGE, DELAI_PHOTO_MIN, clean, esc, validEmail, daysAgoIso, pub, sendMail, dispatch, lotRecords };
+module.exports = { JOURS_HISTORIQUE, JOURS_PURGE, JOURS_PHOTO, DELAI_PHOTO_MIN, clean, esc, validEmail, daysAgoIso, pub, sendMail, dispatch, lotRecords };

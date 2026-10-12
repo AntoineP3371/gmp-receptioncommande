@@ -36,6 +36,14 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 8. **Créer le compte administrateur** : tableau de bord PocketBase (`.../_/`, connexion super-utilisateur) → collection `colis_admins` → **New record** (e-mail, mot de passe, confirmation). Ce compte est propre à cette appli : celui du portail ne fonctionne pas ici. Se connecter ensuite sur `admin.html`.
 9. Sur le PC de l'atelier : ouvrir `.../reception.html` et l'ajouter aux favoris / à l'écran d'accueil.
 
+## Photos : place occupée
+
+- La photo est **réduite sur le téléphone avant l'envoi** (1280 px, JPEG qualité 70 % : environ 150 à 250 Ko), et PocketBase refuse tout fichier de plus de 3 Mo.
+- **Une seule photo par lot** de commandes validées ensemble (pas une par commande).
+- L'onglet « Déjà réceptionnés » affiche une **miniature légère** (≈ 20 Ko, générée par PocketBase) ; toucher la photo l'ouvre en grand.
+- **Les fichiers photo sont supprimés au bout de 30 jours** (la fiche de commande reste), et la fiche elle-même au bout de 90 jours. Réglable dans `pb/pb_hooks/colis-lib.js` (`JOURS_PHOTO`, `JOURS_PURGE`).
+- Ordre de grandeur : 100 réceptions par mois avec photo ≈ 20 Mo à conserver.
+
 ## Écran tactile de réception
 
 - **Clavier à l'écran** : s'ouvre dès qu'une zone de texte est touchée sur `reception.html` (recherche, commentaire, nom d'opérateur). Actif par défaut sur un écran tactile ; le bouton **⌨** à côté de « Effacer » l'active ou le désactive (choix mémorisé). Forçable avec `?clavier=1` ou `?clavier=0` dans l'adresse.

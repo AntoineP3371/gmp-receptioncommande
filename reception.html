@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" class="recep">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
 </head>
 <body>
 <div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Je réceptionne un colis</h1><a class="back" href="index.html">← Accueil</a></div>
-<div class="wrap">
+<div class="wrap recep">
   <div class="toolbar">
     <div class="searchrow">
       <input id="q" type="search" placeholder="🔍 Rechercher : nom, fournisseur, contenu, n° de commande…" autocomplete="off" inputmode="search">
@@ -31,6 +31,7 @@
   <div style="display:flex;gap:10px"><button class="btn ghost" id="selclear">Tout désélectionner</button><button class="btn" id="selgo">Valider la réception →</button></div>
 </div>
 
+<div class="lightbox" id="lb" hidden><img id="lbimg" alt="Photo de la réception"><span>Toucher pour fermer</span></div>
 <div class="overlay" id="ov" hidden><div class="sheet" id="sheet"></div></div>
 
 <script src="config.js"></script>
@@ -99,7 +100,8 @@
       return `<div class="tile done"><div class="who">${esc(nomComplet(r))}</div><span class="four">${esc(r.fournisseur)}</span>
         <div class="what">${esc(r.contenu)}</div>
         <div class="state ${bad ? "warn" : "ok"}">${bad ? "⚠️" : "✅"} ${r.etat === "complete" ? "Complète" : "Incomplète"} · ${r.nb_recus} colis${r.abime ? " · abîmée" : ""}</div>
-        <div class="meta"><span>📍 ${esc(r.lieu)}</span><span>${fmtDate(r.recu_le)}${r.operateur ? " · " + esc(r.operateur) : ""}</span></div></div>`;
+        <div class="meta"><span>📍 ${esc(r.lieu)}</span><span>${fmtDate(r.recu_le)}${r.operateur ? " · " + esc(r.operateur) : ""}</span></div>
+        ${RC.photoUrl(r) ? `<img class="thumb" loading="lazy" alt="Photo de la réception" src="${esc(RC.photoUrl(r, true))}" data-full="${esc(RC.photoUrl(r))}">` : ""}</div>`;
     }
     const on = sel.has(r.id);
     return `<button class="tile ${on ? "sel" : ""}" data-id="${esc(r.id)}"><span class="check">${on ? "✓" : ""}</span>
@@ -109,6 +111,12 @@
   }
 
   // ---------- événements de la liste ----------
+  // photo d'une réception : touchée, elle s'affiche en grand
+  $("grid").addEventListener("click", (e) => {
+    const im = e.target.closest("img.thumb"); if (!im) return;
+    $("lbimg").src = im.dataset.full; $("lb").hidden = false;
+  });
+  $("lb").onclick = () => { $("lb").hidden = true; $("lbimg").removeAttribute("src"); };
   $("grid").onclick = (e) => {
     const t = e.target.closest(".tile[data-id]"); if (!t) return;
     const id = t.dataset.id;
@@ -128,40 +136,56 @@
     const picked = items.filter((r) => sel.has(r.id) && r.statut === "attendu");
     if (!picked.length) return;
     const memo = lsGet("rc_operateur", "");
-    form = { picked, etat: "complete", abime: false, lieu: "", commentaire: "", operateur: memo, opMode: operateurs.length && !(memo && !operateurs.includes(memo)) ? "list" : "other", err: "" };
+    form = { picked, etat: "complete", abime: false, lieu: "", commentaire: "", operateur: memo, err: "" };
     drawForm();
     $("ov").hidden = false;
   }
   function drawForm() {
     const f = form;
+    const txt = operateurs.includes(f.operateur) ? "" : f.operateur;      // nom saisi à la main (hors liste)
+    $("sheet").className = "sheet full";
     $("sheet").innerHTML = `
-      <h2>Valider la réception</h2>
-      <h3 style="margin-top:0">Combien de colis reçus ? <span class="note" style="text-transform:none">(par commande)</span></h3>
-      <div class="reclist">${f.picked.map((r) => `
-        <div class="recrow"><div class="t"><b>${esc(nomComplet(r))}</b><small>${esc(r.fournisseur)}${r.contenu ? " — " + esc(r.contenu) : ""}</small></div>
-        <div class="stepper"><button data-dec="${esc(r.id)}">−</button><span>${sel.get(r.id)} colis</span><button data-inc="${esc(r.id)}">+</button></div></div>`).join("")}
+      <div class="shead"><h2>Valider la réception</h2><span class="note">${f.picked.length} commande${f.picked.length > 1 ? "s" : ""}</span></div>
+      <div class="sbody">
+        <div class="scol">
+          <h3 style="margin-top:0">Combien de colis reçus ? <span class="note" style="text-transform:none">(par commande)</span></h3>
+          <div class="reclist">${f.picked.map((r) => `
+            <div class="recrow"><div class="t"><b>${esc(nomComplet(r))}</b><small>${esc(r.fournisseur)}${r.contenu ? " — " + esc(r.contenu) : ""}</small></div>
+            <div class="stepper"><button data-dec="${esc(r.id)}">−</button><span>${sel.get(r.id)} colis</span><button data-inc="${esc(r.id)}">+</button></div></div>`).join("")}
+          </div>
+          <h3>Commentaire <span class="note" style="text-transform:none">(facultatif)</span></h3>
+          <textarea id="com" rows="3" placeholder="Ex. boîte écrasée, il manque la notice…">${esc(f.commentaire)}</textarea>
+        </div>
+        <div class="scol">
+          <h3 style="margin-top:0">La commande est…</h3>
+          <div class="choices">
+            <button class="choice good ${f.etat === "complete" ? "on" : ""}" data-etat="complete">✅ Complète</button>
+            <button class="choice bad ${f.etat === "incomplete" ? "on" : ""}" data-etat="incomplete">⚠️ Incomplète</button>
+          </div>
+          <h3>État du colis</h3>
+          <div class="choices">
+            <button class="choice good ${!f.abime ? "on" : ""}" data-abime="0">👍 Intact</button>
+            <button class="choice bad ${f.abime ? "on" : ""}" data-abime="1">💥 Abîmé</button>
+          </div>
+          <h3>Mis à disposition à…</h3>
+          <div class="choices">${(window.LIEUX || []).map((l) => `<button class="choice ${f.lieu === l ? "on" : ""}" data-lieu="${esc(l)}">📍 ${esc(l)}</button>`).join("")}</div>
+          <h3>Opérateur <span class="note" style="text-transform:none">(facultatif)</span></h3>
+          ${operateurs.length ? `<div class="choices" id="opbtns">${operateurs.map((o) => `<button class="choice ${f.operateur === o ? "on" : ""}" data-op="${esc(o)}">👤 ${esc(o)}</button>`).join("")}</div>` : ""}
+          <input type="text" id="op" placeholder="${operateurs.length ? "Autre nom (saisie libre)" : "Nom de l'opérateur"}" value="${esc(txt)}" style="margin-top:10px">
+        </div>
       </div>
-      <h3>La commande est…</h3>
-      <div class="choices">
-        <button class="choice good ${f.etat === "complete" ? "on" : ""}" data-etat="complete">✅ Complète</button>
-        <button class="choice bad ${f.etat === "incomplete" ? "on" : ""}" data-etat="incomplete">⚠️ Incomplète</button>
-      </div>
-      <h3>État du colis</h3>
-      <div class="choices">
-        <button class="choice good ${!f.abime ? "on" : ""}" data-abime="0">👍 Intact</button>
-        <button class="choice bad ${f.abime ? "on" : ""}" data-abime="1">💥 Abîmé</button>
-      </div>
-      <h3>Mis à disposition à…</h3>
-      <div class="choices">${(window.LIEUX || []).map((l) => `<button class="choice ${f.lieu === l ? "on" : ""}" data-lieu="${esc(l)}">📍 ${esc(l)}</button>`).join("")}</div>
-      <h3>Commentaire <span class="note" style="text-transform:none">(facultatif)</span></h3>
-      <textarea id="com" rows="2" placeholder="Ex. boîte écrasée, il manque la notice…">${esc(f.commentaire)}</textarea>
-      <h3>Opérateur <span class="note" style="text-transform:none">(facultatif)</span></h3>
-      ${operateurs.length ? `<div class="choices">${operateurs.map((o) => `<button class="choice ${f.opMode === "list" && f.operateur === o ? "on" : ""}" data-op="${esc(o)}">👤 ${esc(o)}</button>`).join("")}<button class="choice ${f.opMode === "other" ? "on" : ""}" data-opother="1">✏️ Autre…</button></div>` : ""}
-      ${f.opMode === "other" || !operateurs.length ? `<input type="text" id="op" placeholder="Nom de l'opérateur" value="${esc(f.operateur)}" style="margin-top:10px">` : ""}
-      ${f.err ? `<div class="err">${esc(f.err)}</div>` : ""}
-      <div class="actions"><button class="btn ghost" id="fcancel">Annuler</button><button class="btn" id="fsend">📧 Valider et prévenir</button></div>`;
+      <div class="sfoot">
+        ${f.err ? `<div class="err" style="margin:0 0 8px">${esc(f.err)}</div>` : ""}
+        <div class="actions" style="margin:0"><button class="btn ghost" id="fcancel">Annuler</button><button class="btn" id="fsend">📧 Valider et prévenir</button></div>
+      </div>`;
   }
-  function keepText() { if ($("com")) form.commentaire = $("com").value; if ($("op")) form.operateur = $("op").value; }
+  // texte tapé à la main = nom de l'opérateur (prioritaire sur un bouton) ; champ vidé = pas d'opérateur saisi
+  function keepText() {
+    if ($("com")) form.commentaire = $("com").value;
+    if ($("op")) { const t = $("op").value.trim(); if (t) form.operateur = t; else if (!operateurs.includes(form.operateur)) form.operateur = ""; }
+  }
+  function paintOps() { document.querySelectorAll("#opbtns [data-op]").forEach((b) => b.classList.toggle("on", b.dataset.op === form.operateur)); }
+  $("sheet").addEventListener("input", (e) => { if (form && e.target.id === "op") { keepText(); paintOps(); } });
 
   $("sheet").onclick = async (e) => {
     const b = e.target.closest("button"); if (!b || !form) return;
@@ -170,8 +194,7 @@
     if (d.etat) form.etat = d.etat;
     else if (d.abime != null && d.abime !== "") form.abime = d.abime === "1";
     else if (d.lieu) form.lieu = d.lieu;
-    else if (d.op !== undefined) { form.operateur = form.opMode === "list" && form.operateur === d.op ? "" : d.op; form.opMode = "list"; }
-    else if (d.opother) { if (form.opMode !== "other") form.operateur = ""; form.opMode = "other"; drawForm(); if ($("op")) $("op").focus(); return; }
+    else if (d.op !== undefined) form.operateur = form.operateur === d.op ? "" : d.op;
     else if (d.inc || d.dec) {
       const r = items.find((x) => x.id === (d.inc || d.dec));
       sel.set(r.id, Math.max(1, Math.min(99, sel.get(r.id) + (d.inc ? 1 : -1))));
@@ -210,14 +233,21 @@
     form = { step2: true, lot };
     let qrHtml = "";
     try { const qr = qrcode(0, "M"); qr.addData(photoUrl); qr.make(); qrHtml = qr.createImgTag(6, 8); } catch (e) { qrHtml = '<p class="err">QR code indisponible</p>'; }
-    $("sheet").innerHTML = `<h2>✅ Réception enregistrée</h2>
-      <p>Pour <b>joindre une photo</b> au mail, scannez ce QR code avec un téléphone :</p>
-      <div class="qrbox">${qrHtml}</div>
-      ${RC.demo ? `<p class="note" style="text-align:center">Mode démo : <a href="${esc(photoUrl)}" target="_blank">ouvrir la page photo dans ce navigateur</a></p>` : ""}
-      <div id="lotstate" class="lotstate">⏳ En attente de la photo…</div>
-      <div id="lotmails"></div>
-      <div class="actions"><button class="btn ghost" id="fnophoto">Envoyer sans photo</button><button class="btn" id="fclose">Terminer</button></div>
-      <p class="note" style="margin-bottom:0">Sans photo, le mail part tout seul au bout de 10 minutes.</p>`;
+    $("sheet").className = "sheet full";
+    $("sheet").innerHTML = `<div class="shead"><h2>✅ Réception enregistrée</h2></div>
+      <div class="sbody">
+        <div class="scol" style="text-align:center">
+          <p style="margin-top:0">Pour <b>joindre une photo</b> au mail, scannez ce QR code avec un téléphone :</p>
+          <div class="qrbox">${qrHtml}</div>
+          ${RC.demo ? `<p class="note">Mode démo : <a href="${esc(photoUrl)}" target="_blank">ouvrir la page photo dans ce navigateur</a></p>` : ""}
+        </div>
+        <div class="scol">
+          <div id="lotstate" class="lotstate">⏳ En attente de la photo…</div>
+          <div id="lotmails"></div>
+          <p class="note">Sans photo, le mail part tout seul au bout de 10 minutes.</p>
+        </div>
+      </div>
+      <div class="sfoot"><div class="actions" style="margin:0"><button class="btn ghost" id="fnophoto">Envoyer sans photo</button><button class="btn" id="fclose">Terminer</button></div></div>`;
     $("ov").hidden = false;
     clearInterval(pollTimer);
     const poll = async () => {

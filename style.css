@@ -149,3 +149,42 @@ body.kb-open .sheet { max-height: 100%; }
 body.kb-open .selbar { bottom: var(--kbh, 0px); }
 .kbtoggle { min-width: 58px; font-size: 1.4rem; padding: 0 14px; opacity: .55; }
 .kbtoggle.on { opacity: 1; background: var(--blue-light); }
+
+/* ---------- Réception : mise en page plein écran (tactile) ---------- */
+html.recep { font-size: clamp(16px, .9vw + 8px, 23px); }
+html.recep body { font-size: 1.1rem; }
+.wrap.recep { max-width: none; padding: 10px clamp(14px, 2vw, 36px) 18px; }
+.recep .topbar { padding: 8px clamp(14px, 2vw, 36px); }
+.recep .searchrow input { font-size: 1.3rem; padding: 18px 20px; }
+.recep .tab { font-size: 1.05rem; padding: 12px 24px; }
+.recep .chip { min-height: 50px; font-size: 1.05rem; padding: 10px 18px; }
+.recep .chip.az { min-width: 50px; }
+.recep .grid { grid-template-columns: repeat(auto-fill, minmax(clamp(260px, 22vw, 380px), 1fr)); gap: 16px; }
+.recep .tile { padding: 18px 18px 16px; }
+.recep .tile .who { font-size: 1.3rem; }
+.recep .tile .what { font-size: 1.05rem; }
+
+/* fenêtres de validation et d'étape photo : plein écran, deux colonnes */
+.overlay { align-items: stretch; }
+.sheet.full { max-width: none; width: 100%; height: 100%; max-height: 100%; border-radius: 0; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.sheet.full .shead { display: flex; align-items: baseline; gap: 16px; padding: 16px clamp(16px, 2.5vw, 40px) 10px; border-bottom: 3px solid var(--blue); flex: 0 0 auto; }
+.sheet.full .shead h2 { margin: 0; font-size: 1.6rem; }
+.sheet.full .sbody { flex: 1 1 auto; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: clamp(18px, 3vw, 48px); align-content: start; padding: 14px clamp(16px, 2.5vw, 40px); }
+.sheet.full .sfoot { flex: 0 0 auto; padding: 12px clamp(16px, 2.5vw, 40px) 16px; border-top: 2px solid var(--border); background: var(--surface); }
+.sheet.full .actions .btn { min-height: 66px; font-size: 1.25rem; }
+.sheet.full .choice { min-height: 68px; font-size: 1.15rem; }
+.sheet.full .recrow { padding: 12px 16px; }
+.sheet.full .stepper button { width: 58px; height: 58px; font-size: 1.8rem; }
+.sheet.full .stepper span { min-width: 90px; font-size: 1.15rem; }
+.sheet.full textarea, .sheet.full input[type=text] { font-size: 1.2rem; padding: 16px; }
+.sheet.full .qrbox img { width: min(560px, 36vw, 62vh); }
+.sheet.full .lotstate { font-size: 1.3rem; padding: 20px; }
+@media (max-width: 900px) {
+  .sheet.full .sbody { grid-template-columns: 1fr; }
+}
+
+/* photo d'une réception */
+.tile .thumb { width: 100%; max-height: 230px; object-fit: cover; border-radius: 10px; margin-top: 6px; background: var(--bg); cursor: zoom-in; }
+.lightbox { position: fixed; inset: 0; z-index: 120; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.lightbox img { max-width: 96vw; max-height: 88vh; border-radius: 10px; }
+.lightbox span { color: #fff; opacity: .7; font-size: .95rem; }

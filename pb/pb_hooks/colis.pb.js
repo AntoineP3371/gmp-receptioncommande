@@ -110,7 +110,7 @@ routerAdd("POST", "/colis/photo", (e) => {
   const holder = rows[0];
   holder.set("photo", files[0]);
   $app.save(holder);
-  rows.forEach((r) => { r.set("photo_rec", holder.id); });
+  rows.forEach((r) => { r.set("photo_rec", holder.id); r.set("photo_nom", holder.getString("photo")); });
   let erreur = "";
   rows.forEach((r) => { if (!r.getBool("mail_envoye")) erreur = L.dispatch(r) || erreur; });
   return e.json(200, { sent: true, erreur: erreur });
@@ -142,6 +142,21 @@ cronAdd("colis_mails_en_attente", "* * * * *", () => {
   const L = require(`${__hooks}/colis-lib.js`);
   const rows = $app.findRecordsByFilter("colis", "statut = 'recu' && mail_envoye != true && recu_le < {:d}", "recu_le", 50, 0, { d: new Date(Date.now() - L.DELAI_PHOTO_MIN * 60000).toISOString() });
   rows.forEach((r) => L.dispatch(r));
+});
+
+// Nettoyage quotidien (3 h 10) : supprime les FICHIERS photo de plus de 30 jours (les fiches restent)
+cronAdd("colis_purge_photos", "10 3 * * *", () => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const old = $app.findRecordsByFilter("colis", "photo != '' && recu_le < {:d}", "", 500, 0, { d: L.daysAgoIso(L.JOURS_PHOTO) });
+  old.forEach((h) => {
+    $app.findRecordsByFilter("colis", "photo_rec = {:h}", "", 100, 0, { h: h.id }).forEach((r) => {
+      if (r.id !== h.id) { r.set("photo_rec", ""); r.set("photo_nom", ""); $app.save(r); }
+    });
+    h.set("photo", "");
+    h.set("photo_rec", "");
+    h.set("photo_nom", "");
+    $app.save(h);
+  });
 });
 
 // Nettoyage quotidien (3 h) : supprime les réceptions de plus de 90 jours

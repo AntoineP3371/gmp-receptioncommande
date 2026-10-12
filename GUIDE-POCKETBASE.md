@@ -65,7 +65,7 @@ Vous devez voir `colis.pb.js` et `colis-lib.js` d'un côté, `1791000000_colis.j
 cd ~/colis-depot && git pull && cp -r pb/pb_hooks pb/pb_migrations ~/pocketbase-colis/
 ```
 
-> PocketBase recharge tout seul les fichiers de `pb_hooks` quand ils changent (aucun redémarrage ni `sudo` nécessaire). Les nouveaux fichiers de `pb_migrations` ne s'appliquent qu'au redémarrage : dans ce cas, arrêtez puis relancez PocketBase (voir l'aide-mémoire).
+> PocketBase recharge tout seul les fichiers de `pb_hooks` quand ils changent (aucun redémarrage ni `sudo` nécessaire). **Les nouveaux fichiers de `pb_migrations` ne s'appliquent qu'au redémarrage** : après une mise à jour qui en ajoute un (c'est le cas de la v0.4 : `1791000002_photo.js`), arrêtez puis relancez PocketBase (voir l'aide-mémoire).
 
 > Autre méthode (depuis le PC) : `scp -r pb_hooks pb_migrations UTILISATEUR@ADRESSE_DU_PI:~/pocketbase-colis/`, ou WinSCP.
 

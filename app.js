@@ -83,10 +83,11 @@
       const l = demoLoad(); l.filter((r) => r.lot === lot).forEach((r) => { r.mail_envoye = true; }); demoSave(l); return { sent: true, erreur: "" };
     },
     async photo(lot, blob) {
+      const dataUrl = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
       const l = demoLoad(), rows = l.filter((r) => r.lot === lot);
       if (!rows.length) throw new Error("Lot introuvable.");
       if (rows.every((r) => r.mail_envoye)) throw new Error("Les mails de ce lot sont déjà partis.");
-      rows.forEach((r) => { r.photo = true; r.mail_envoye = true; }); demoSave(l); return { sent: true, erreur: "" };
+      rows.forEach((r) => { r.photo = true; r.photo_data = dataUrl; r.mail_envoye = true; }); demoSave(l); return { sent: true, erreur: "" };
     },
     async config() { const c = lsGet("rc_demo_config", {}); return { fournisseurs: c.fournisseurs || window.FOURNISSEURS || [], operateurs: c.operateurs || [] }; },
     async mine(b) { const e = String(b.email).toLowerCase(); return { items: demoLoad().filter((r) => r.email === e).map(pubOf) }; },
@@ -138,5 +139,12 @@
     setConfig: (cfg) => lsSet("rc_demo_config", cfg),
   };
 
-  window.RC = { api: demo ? demoApi : pbApi, demo, demoAdmin, PB, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
+  // Adresse de la photo d'une commande réceptionnée (miniature légère si thumb = true), ou "" s'il n'y en a pas
+  function photoUrl(r, thumb) {
+    if (demo) return r.photo_data || "";
+    if (!r.photo_rec || !r.photo_nom) return "";
+    return PB + "/api/files/colis/" + r.photo_rec + "/" + encodeURIComponent(r.photo_nom) + (thumb ? "?thumb=480x0" : "");
+  }
+
+  window.RC = { api: demo ? demoApi : pbApi, demo, demoAdmin, PB, photoUrl, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
 })();
