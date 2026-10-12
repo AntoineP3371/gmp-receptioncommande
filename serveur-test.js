@@ -11,6 +11,8 @@ http.createServer((req, res) => {
   if (!file.startsWith(__dirname) || file.includes(path.sep + "pb" + path.sep)) { res.writeHead(403); return res.end("Interdit"); }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); return res.end("Introuvable"); }
+    // En test, on force le mode démo (le vrai config.js pointe vers PocketBase)
+    if (path.basename(file) === "config.js") data = Buffer.from(data.toString("utf8").replace(/window.PB_URL = "[^"]*";/, 'window.PB_URL = "";'));
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream", "Cache-Control": "no-store" });
     res.end(data);
   });

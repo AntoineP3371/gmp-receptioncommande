@@ -2,7 +2,7 @@
 // Laissez vide ("") pour le MODE DÉMO : tout est enregistré dans votre navigateur
 // et les e-mails sont simplement affichés (rien n'est envoyé).
 // Exemple une fois l'instance créée : "https://api_colis.gmpbordeaux.fr"
-window.PB_URL = "";
+window.PB_URL = "https://api_colis.gmpbordeaux.fr";
 
 // Lieux de mise à disposition proposés à l'opérateur (modifiez librement cette liste)
 window.LIEUX = [
