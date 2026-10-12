@@ -147,7 +147,7 @@ cronAdd("colis_mails_en_attente", "* * * * *", () => {
 // Nettoyage quotidien (3 h 10) : supprime les FICHIERS photo de plus de 30 jours (les fiches restent)
 cronAdd("colis_purge_photos", "10 3 * * *", () => {
   const L = require(`${__hooks}/colis-lib.js`);
-  const old = $app.findRecordsByFilter("colis", "photo != '' && recu_le < {:d}", "", 500, 0, { d: L.daysAgoIso(L.JOURS_PHOTO) });
+  const old = $app.findRecordsByFilter("colis", "photo != '' && recu_le != '' && recu_le < {:d}", "", 500, 0, { d: L.daysAgoIso(L.JOURS_PHOTO) });
   old.forEach((h) => {
     $app.findRecordsByFilter("colis", "photo_rec = {:h}", "", 100, 0, { h: h.id }).forEach((r) => {
       if (r.id !== h.id) { r.set("photo_rec", ""); r.set("photo_nom", ""); $app.save(r); }

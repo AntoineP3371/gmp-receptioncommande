@@ -4,7 +4,7 @@ Pages :
 
 - `index.html` — accueil (deux gros boutons).
 - `reception.html` — **opérateurs** : tuiles de commandes, recherche, filtre par fournisseur et par initiale du nom, sélection de plusieurs commandes, validation (complète / incomplète, nombre de colis reçus, intact / abîmé, lieu de mise à disposition) → un e-mail part au commandeur.
-- `admin.html` — **administration** (compte requis) : toutes les commandes et réceptions (filtres, recherche, statut du mail, photo), **export Excel** de la vue filtrée, suppression d'une ligne, édition des **fournisseurs courants** et de la **liste des opérateurs**.
+- `admin.html` — **administration** (compte requis) : toutes les commandes et réceptions (filtres, recherche, statut du mail, photo), **export Excel** de la vue filtrée, **modification** (✏️) ou **annulation** (↩️) d'une réception, suppression d'une ligne, édition des **fournisseurs courants** et de la **liste des opérateurs**.
 - `photo.html` — page ouverte par le QR code sur le téléphone de l'opérateur (photo de la réception).
 - `commande.html` — **commandeur** : déclare sa commande (nom, e-mail, fournisseur, contenu, n° de commande), retrouve ses commandes et leur état, peut annuler.
 
@@ -35,6 +35,12 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 7. Publier le dossier (sans `pb/` si vous voulez) sur un dépôt GitHub + **Settings → Pages**.
 8. **Créer le compte administrateur** : tableau de bord PocketBase (`.../_/`, connexion super-utilisateur) → collection `colis_admins` → **New record** (e-mail, mot de passe, confirmation). Ce compte est propre à cette appli : celui du portail ne fonctionne pas ici. Se connecter ensuite sur `admin.html`.
 9. Sur le PC de l'atelier : ouvrir `.../reception.html` et l'ajouter aux favoris / à l'écran d'accueil.
+
+## Corriger ou annuler une réception (admin)
+
+- **✏️ Modifier** : complète / incomplète, nombre de colis, intact / abîmé, lieu, opérateur, commentaire. Aucun nouveau mail n'est envoyé au commandeur.
+- **↩️ Annuler la réception** : la commande redevient « attendue » et réapparaît chez les opérateurs. Le mail déjà parti ne peut pas être rappelé. La photo est supprimée, sauf si elle sert encore à une autre commande du même lot.
+- Cette version ajoute la migration `1791000003_admin_edit.js` (droit de modification pour les administrateurs) : **redémarrer PocketBase** après la mise à jour (voir `GUIDE-POCKETBASE.md`).
 
 ## Photos : place occupée
 

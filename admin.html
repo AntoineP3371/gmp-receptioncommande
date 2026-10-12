@@ -89,6 +89,8 @@
   </section>
 </div>
 
+<div class="overlay" id="ed" hidden><div class="sheet modal" id="edsheet"></div></div>
+
 <script src="config.js"></script>
 <script src="app.js"></script>
 <script src="xlsx.full.min.js"></script>
@@ -187,7 +189,7 @@
         <td>${esc(r.lieu)}</td><td>${esc(r.operateur)}</td><td>${esc(r.commentaire)}</td>
         <td>${rc ? `<span class="pill ${MAIL[r.mail][0]}" ${r.mail_erreur ? `title="${esc(r.mail_erreur)}"` : ""}>${MAIL[r.mail][1]}</span>` : ""}</td>
         <td>${r.photoUrl && r.photoUrl !== "#" ? `<a href="${esc(r.photoUrl)}" target="_blank">📷 Voir</a>` : r.hasPhoto ? "📷" : ""}</td>
-        <td><button class="del" title="Supprimer cette ligne" data-del="${esc(r.id)}">🗑</button></td></tr>`;
+        <td class="nowrap">${rc ? `<button class="del act" title="Modifier cette réception" data-edit="${esc(r.id)}">✏️</button><button class="del act" title="Annuler cette réception (la commande redevient attendue)" data-undo="${esc(r.id)}">↩️</button>` : ""}<button class="del" title="Supprimer cette ligne" data-del="${esc(r.id)}">🗑</button></td></tr>`;
     }).join("") || '<tr><td colspan="18" class="note" style="text-align:center;padding:30px">Aucune ligne.</td></tr>';
     $("count").textContent = list.length + " ligne" + (list.length > 1 ? "s" : "") + " affichée" + (list.length > 1 ? "s" : "") + " sur " + rows.length + ".";
     $("export").textContent = "📊 Exporter en Excel (" + list.length + ")";
@@ -195,7 +197,46 @@
 
   ["q", "fstat", "ffour"].forEach((id) => $(id).addEventListener(id === "q" ? "input" : "change", render));
   $("refresh").onclick = load;
+  // ---------- modifier / annuler une réception ----------
+  async function patchRec(id, patch) {
+    if (demo) RC.demoAdmin.update(id, patch);
+    else await pb("/api/collections/colis/records/" + id, { method: "PATCH", body: JSON.stringify(patch) });
+  }
+  const who = (r) => (r.nom || "").toUpperCase() + " " + (r.prenom || "") + " — " + (r.fournisseur || "");
+  function openEdit(r) {
+    const lieux = [...(window.LIEUX || [])]; if (r.lieu && !lieux.includes(r.lieu)) lieux.unshift(r.lieu);
+    $("edsheet").innerHTML = `<h2>Modifier la réception</h2><p class="note" style="margin-top:0">${esc(who(r))}<br>Les modifications ne renvoient <b>pas</b> de nouveau mail au commandeur.</p>
+      <div class="form">
+        <div><label for="e-etat">La commande est…</label><select id="e-etat"><option value="complete" ${r.etat === "complete" ? "selected" : ""}>✅ Complète</option><option value="incomplete" ${r.etat === "incomplete" ? "selected" : ""}>⚠️ Incomplète</option></select></div>
+        <div><label for="e-nb">Colis reçus</label><input id="e-nb" type="number" min="1" max="99" value="${esc(r.nb_recus || 1)}"></div>
+        <div><label for="e-abime">État du colis</label><select id="e-abime"><option value="0" ${!r.abime ? "selected" : ""}>👍 Intact</option><option value="1" ${r.abime ? "selected" : ""}>💥 Abîmé</option></select></div>
+        <div><label for="e-lieu">Mis à disposition à</label><select id="e-lieu">${lieux.map((l) => `<option ${l === r.lieu ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
+        <div class="full"><label for="e-op">Opérateur</label><input id="e-op" list="e-ops" value="${esc(r.operateur)}" maxlength="60"><datalist id="e-ops">${operateurs.map((o) => `<option value="${esc(o)}">`).join("")}</datalist></div>
+        <div class="full"><label for="e-com">Commentaire</label><input id="e-com" value="${esc(r.commentaire)}" maxlength="300"></div>
+      </div>
+      <div class="actions"><button class="btn ghost" id="e-cancel">Fermer</button><button class="btn" id="e-save">💾 Enregistrer</button></div>`;
+    $("ed").hidden = false;
+    $("e-cancel").onclick = () => { $("ed").hidden = true; };
+    $("e-save").onclick = async () => {
+      try {
+        await patchRec(r.id, { etat: $("e-etat").value, nb_recus: Math.max(1, Math.min(99, parseInt($("e-nb").value, 10) || 1)), abime: $("e-abime").value === "1", lieu: $("e-lieu").value, operateur: $("e-op").value.trim(), commentaire: $("e-com").value.trim() });
+        $("ed").hidden = true; toast("✅ Réception modifiée.", "ok"); load();
+      } catch (err) { toast(err.message, "err"); }
+    };
+  }
+  async function undoRec(r) {
+    if (!confirm("Annuler cette réception ?\n\n" + who(r) + "\n\nLa commande redevient « attendue » et réapparaît chez les opérateurs. Le mail déjà envoyé au commandeur ne peut pas être rappelé" + (r.hasPhoto ? ", et la photo sera supprimée." : "."))) return;
+    // la photo est partagée par le lot : on ne supprime le fichier que si personne d'autre ne l'utilise
+    const shared = rows.some((x) => x.id !== r.id && x.photo_rec === r.id);
+    const patch = { statut: "attendu", recu_le: "", etat: "", nb_recus: 0, abime: false, lieu: "", commentaire: "", operateur: "", lot: "", mail_envoye: false, mail_erreur: "", photo_rec: "", photo_nom: "" };
+    if (!shared) { patch.photo = ""; if (demo) patch.photo_data = ""; }
+    try { await patchRec(r.id, patch); toast("Réception annulée : la commande est de nouveau attendue.", "ok"); load(); } catch (err) { toast(err.message, "err"); }
+  }
+  $("ed").addEventListener("click", (e) => { if (e.target === $("ed")) $("ed").hidden = true; });
+
   $("rows").onclick = async (e) => {
+    const be = e.target.closest("[data-edit]"); if (be) { openEdit(rows.find((x) => x.id === be.dataset.edit)); return; }
+    const bu = e.target.closest("[data-undo]"); if (bu) { await undoRec(rows.find((x) => x.id === bu.dataset.undo)); return; }
     const b = e.target.closest("[data-del]"); if (!b) return;
     const r = rows.find((x) => x.id === b.dataset.del);
     if (!confirm("Supprimer définitivement cette ligne ?\n\n" + (r.nom || "") + " " + (r.prenom || "") + " — " + (r.fournisseur || ""))) return;

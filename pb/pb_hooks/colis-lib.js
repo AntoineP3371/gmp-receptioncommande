@@ -11,6 +11,13 @@ function esc(s) {
 function validEmail(s) { return /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(s); }
 function daysAgoIso(n) { return new Date(Date.now() - n * 86400000).toISOString(); }
 
+// Nom du fichier photo : champ photo_nom, ou (réceptions d'avant la v0.4) nom lu sur la fiche qui porte la photo
+function photoNom(r) {
+  const n = r.getString("photo_nom"), rec = r.getString("photo_rec");
+  if (n || !rec) return n;
+  try { return $app.findRecordById("colis", rec).getString("photo"); } catch (e) { return ""; }
+}
+
 // Version publique d'une fiche : SANS l'adresse e-mail ni le code du lot
 function pub(r) {
   return {
@@ -20,7 +27,7 @@ function pub(r) {
     created: r.getString("created"), recu_le: r.getString("recu_le"), operateur: r.getString("operateur"),
     etat: r.getString("etat"), nb_recus: r.getInt("nb_recus"), abime: r.getBool("abime"),
     lieu: r.getString("lieu"), commentaire: r.getString("commentaire"),
-    photo_rec: r.getString("photo_rec"), photo_nom: r.getString("photo_nom"),
+    photo_rec: r.getString("photo_rec"), photo_nom: photoNom(r),
   };
 }
 

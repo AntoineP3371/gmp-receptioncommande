@@ -137,6 +137,7 @@
     all: () => demoLoad(),
     remove: (id) => demoSave(demoLoad().filter((r) => r.id !== id)),
     setConfig: (cfg) => lsSet("rc_demo_config", cfg),
+    update: (id, patch) => { const l = demoLoad(), r = l.find((x) => x.id === id); if (r) Object.assign(r, patch); demoSave(l); },
   };
 
   // Adresse de la photo d'une commande réceptionnée (miniature légère si thumb = true), ou "" s'il n'y en a pas
