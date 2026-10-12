@@ -36,14 +36,14 @@ function mailHtml(r, hasPhoto) {
   const complete = r.getString("etat") === "complete";
   const lignes = [];
   lignes.push(complete ? "✅ <b>Commande complète</b>" : "⚠️ <b>Commande incomplète</b> : il manque des éléments");
-  lignes.push("📦 " + got + " colis reçu" + (got > 1 ? "s" : ""));
+  lignes.push("&#128230; " + got + " colis reçu" + (got > 1 ? "s" : ""));
   if (r.getBool("abime")) lignes.push("⚠️ <b>Colis abîmé</b> à l'arrivée");
-  lignes.push("📍 À récupérer : <b>" + esc(r.getString("lieu")) + "</b>");
-  if (r.getString("commentaire")) lignes.push("💬 " + esc(r.getString("commentaire")));
+  lignes.push("&#128205; À récupérer : <b>" + esc(r.getString("lieu")) + "</b>");
+  if (r.getString("commentaire")) lignes.push("&#128172; " + esc(r.getString("commentaire")));
   const rappel = [r.getString("fournisseur"), r.getString("contenu"), r.getString("reference")].filter((x) => x).map(esc).join(" — ");
   const op = r.getString("operateur");
   return '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:520px;color:#3b3330">' +
-    '<div style="background:#169fdb;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-size:18px;font-weight:700">📦 Votre commande est arrivée</div>' +
+    '<div style="background:#169fdb;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-size:18px;font-weight:700">&#128230; Votre commande est arrivée</div>' +
     '<div style="border:1px solid #d5e1e9;border-top:0;border-radius:0 0 10px 10px;padding:18px;line-height:1.7">' +
     "<p>Bonjour " + esc(r.getString("prenom")) + ",</p>" +
     "<p>Votre commande a été réceptionnée à l'atelier :<br><i>" + rappel + "</i></p>" +
@@ -62,7 +62,7 @@ function sendMail(r) {
     const opts = {
       from: { address: s.meta.senderAddress, name: "Réception colis GMP" },
       to: [{ address: r.getString("email") }],
-      subject: "📦 Votre commande est arrivée" + (r.getString("fournisseur") ? " (" + r.getString("fournisseur") + ")" : ""),
+      subject: "Votre commande est arrivée" + (r.getString("fournisseur") ? " (" + r.getString("fournisseur") + ")" : ""),
     };
     const holderId = r.getString("photo_rec");
     if (holderId) {
