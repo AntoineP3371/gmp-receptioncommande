@@ -133,7 +133,7 @@
   document.addEventListener("DOMContentLoaded", themeBanner);
 
   // Numéro de version : à changer ICI à chaque nouvelle version, il s'affiche sous le titre de toutes les pages
-  const VERSION = "v0.10";
+  const VERSION = "v0.11";
   document.addEventListener("DOMContentLoaded", () => {
     const h = document.querySelector(".topbar h1");
     if (h) h.insertAdjacentHTML("beforeend", '<span class="ver">' + VERSION + "</span>");

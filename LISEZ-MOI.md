@@ -44,6 +44,10 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 - **✏️ Renommer** (admin, onglet « Fournisseurs courants ») : change le nom d'un fournisseur dans la liste **et dans toutes les commandes existantes** ; la couleur et le logo suivent. Si le nouveau nom existe déjà, les deux fournisseurs sont **fusionnés** (utile pour corriger une faute de frappe). Les mails déjà envoyés ne changent pas.
 - Cette version ajoute la migration `1791000004_config_logos.js` : **redémarrer PocketBase** après la mise à jour.
 
+## Zoom de l'écran de réception
+
+Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** (60 à 160 %) avec les boutons **−** et **+** ; toucher le pourcentage revient à 100 %. Il agrandit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) et le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
+
 ## Lieux de dépôt (admin)
 
 - Onglet « Lieux de dépôt » : ajouter, retirer, **✏️ Renommer** (met aussi à jour les réceptions déjà enregistrées ; fusion si le nom existe déjà), puis **Enregistrer la liste**.

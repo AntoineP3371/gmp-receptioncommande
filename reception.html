@@ -8,7 +8,14 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Je réceptionne un colis</h1><a class="back" href="index.html">← Accueil</a></div>
+<div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Je réceptionne un colis</h1>
+  <div class="zoomctl" title="Zoom de l'affichage">
+    <button type="button" id="zmin" aria-label="Réduire">−</button>
+    <input type="range" id="zoom" min="60" max="160" step="5" value="100" aria-label="Zoom">
+    <button type="button" id="zplus" aria-label="Agrandir">+</button>
+    <button type="button" id="zval" title="Revenir à 100 %">100 %</button>
+  </div>
+  <a class="back" href="index.html">← Accueil</a></div>
 <div class="wrap recep">
   <div class="toolbar">
     <div class="searchrow">
@@ -294,6 +301,24 @@
 
   api.config().then((c) => { operateurs = c.operateurs || []; if (c.lieux && c.lieux.length) lieux = c.lieux; RC.setStyles(c.styles, c.fournisseurs); RC.setEmojis(c.emojis); render(); }).catch(() => {});
   Clavier.init({ toggle: $("kbtoggle") });
+
+  // ---------- zoom de tout ce qui est sous la barre du haut (mémorisé) ----------
+  const ZMIN = 60, ZMAX = 160;
+  function setZoom(v) {
+    v = Math.max(ZMIN, Math.min(ZMAX, Math.round(v / 5) * 5));
+    document.documentElement.style.setProperty("--z", v / 100);
+    $("zoom").value = v; $("zval").textContent = v + " %";
+    lsSet("rc_zoom", v);
+    setTopH();
+  }
+  // hauteur de la barre du haut (la barre de recherche collante se place juste dessous)
+  function setTopH() { document.documentElement.style.setProperty("--tb", document.querySelector(".topbar").offsetHeight + "px"); }
+  $("zoom").oninput = () => setZoom(+$("zoom").value);
+  $("zmin").onclick = () => setZoom(+$("zoom").value - 10);
+  $("zplus").onclick = () => setZoom(+$("zoom").value + 10);
+  $("zval").onclick = () => setZoom(100);
+  window.addEventListener("resize", setTopH);
+  setZoom(+lsGet("rc_zoom", 100) || 100);
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée
 })();
