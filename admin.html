@@ -149,7 +149,7 @@
 
   // ---------- données ----------
   const val = (r) => {
-    const mail = r.statut !== "recu" ? "" : r.mail_erreur ? "echec" : r.mail_envoye ? "envoye" : "attente";
+    const mail = r.statut !== "recu" ? "" : r.mail_erreur ? (String(r.mail_erreur).indexOf("Pas d'e-mail") === 0 ? "sansmail" : "echec") : r.mail_envoye ? "envoye" : "attente";
     const holder = r.photo_rec ? byId[r.photo_rec] : null;
     let photoUrl = "";
     if (holder && holder.photo) photoUrl = demo ? "#" : PB + "/api/files/colis/" + holder.id + "/" + holder.photo;
@@ -184,7 +184,7 @@
     });
   }
 
-  const MAIL = { envoye: ["ok", "Envoyé"], attente: ["warn", "En attente"], echec: ["ko", "Échec"] };
+  const MAIL = { envoye: ["ok", "Envoyé"], attente: ["warn", "En attente"], echec: ["ko", "Échec"], sansmail: ["warn", "Sans e-mail"] };
   function render() {
     const recu = rows.filter((r) => r.statut === "recu");
     $("stats").innerHTML = [["Commandes", rows.length], ["Attendues", rows.length - recu.length], ["Réceptionnées", recu.length], ["Incomplètes", recu.filter((r) => r.etat === "incomplete").length], ["Abîmées", recu.filter((r) => r.abime).length]]
@@ -193,14 +193,14 @@
     $("rows").innerHTML = list.map((r) => {
       const rc = r.statut === "recu";
       return `<tr><td class="nowrap">${dt(r.created)}</td><td><b>${esc((r.nom || "").toUpperCase())}</b></td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.fournisseur)}</td><td>${esc(r.contenu)}</td><td>${esc(r.reference)}</td><td class="nowrap">${esc(RC.fmtDay(r.date_prevue))}</td>
-        <td>${rc ? '<span class="pill ok">Réceptionnée</span>' : '<span class="pill att">Attendue</span>'}</td>
+        <td>${(rc ? '<span class="pill ok">Réceptionnée</span>' : '<span class="pill att">Attendue</span>') + (r.non_declare ? ' <span class="pill warn">non déclarée</span>' : '')}</td>
         <td class="nowrap">${rc ? dt(r.recu_le) : ""}</td><td>${rc ? r.nb_recus : ""}</td>
         <td>${rc ? (r.etat === "complete" ? '<span class="pill ok">Oui</span>' : '<span class="pill warn">Non</span>') : ""}</td>
         <td>${rc ? (r.abime ? '<span class="pill warn">Oui</span>' : "Non") : ""}</td>
         <td>${esc(r.lieu)}</td><td>${esc(r.operateur)}</td><td>${esc(r.commentaire)}</td>
         <td>${rc ? `<span class="pill ${MAIL[r.mail][0]}" ${r.mail_erreur ? `title="${esc(r.mail_erreur)}"` : ""}>${MAIL[r.mail][1]}</span>` : ""}</td>
         <td>${r.photoUrl && r.photoUrl !== "#" ? `<a href="${esc(r.photoUrl)}" target="_blank">📷 Voir</a>` : r.hasPhoto ? "📷" : ""}</td>
-        <td class="nowrap">${rc ? `<button class="del act" title="Modifier cette réception" data-edit="${esc(r.id)}">✏️</button><button class="del act" title="Annuler cette réception (la commande redevient attendue)" data-undo="${esc(r.id)}">↩️</button>` : ""}<button class="del" title="Supprimer cette ligne" data-del="${esc(r.id)}">🗑</button></td></tr>`;
+        <td class="nowrap">${rc ? `<button class="del act" title="Modifier cette réception" data-edit="${esc(r.id)}">✏️</button><button class="del act" title="Annuler cette réception (la commande redevient attendue)" data-undo="${esc(r.id)}">↩️</button>` : `<button class="del act" title="Modifier cette commande" data-editp="${esc(r.id)}">✏️</button>`}<button class="del" title="Supprimer cette ligne" data-del="${esc(r.id)}">🗑</button></td></tr>`;
     }).join("") || '<tr><td colspan="19" class="note" style="text-align:center;padding:30px">Aucune ligne.</td></tr>';
     $("count").textContent = list.length + " ligne" + (list.length > 1 ? "s" : "") + " affichée" + (list.length > 1 ? "s" : "") + " sur " + rows.length + ".";
     $("export").textContent = "📊 Exporter en Excel (" + list.length + ")";
@@ -235,6 +235,32 @@
       } catch (err) { toast(err.message, "err"); }
     };
   }
+  // ----- modifier une commande encore attendue (identité, fournisseur, contenu, date prévue) -----
+  function openEditP(r) {
+    if (!r) return;
+    $("edsheet").innerHTML = `<h2>Modifier la commande</h2><p class="note" style="margin-top:0">${esc(who(r))}<br>Changer l'adresse e-mail change aussi la personne prévenue à l'arrivée.</p>
+      <div class="form">
+        <div><label for="p-pre">Prénom</label><input id="p-pre" value="${esc(r.prenom)}" maxlength="60"></div>
+        <div><label for="p-nom">Nom</label><input id="p-nom" value="${esc(r.nom)}" maxlength="60"></div>
+        <div class="full"><label for="p-mail">Adresse e-mail</label><input id="p-mail" type="email" value="${esc(r.email)}" maxlength="120"></div>
+        <div><label for="p-four">Fournisseur</label><input id="p-four" value="${esc(r.fournisseur)}" maxlength="80"></div>
+        <div><label for="p-ref">N° de commande</label><input id="p-ref" value="${esc(r.reference)}" maxlength="80"></div>
+        <div class="full"><label for="p-cont">Contenu</label><input id="p-cont" value="${esc(r.contenu)}" maxlength="200"></div>
+        <div class="full"><label for="p-date">Date de réception prévue</label><input id="p-date" type="date" value="${esc(r.date_prevue)}"></div>
+      </div>
+      <div class="actions"><button class="btn ghost" id="p-cancel">Fermer</button><button class="btn" id="p-save">💾 Enregistrer</button></div>`;
+    $("ed").hidden = false;
+    $("p-cancel").onclick = () => { $("ed").hidden = true; };
+    $("p-save").onclick = async () => {
+      const mail = $("p-mail").value.trim().toLowerCase();
+      if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { toast("Adresse e-mail invalide.", "err"); return; }
+      if (!$("p-nom").value.trim() && !$("p-pre").value.trim()) { toast("Indiquez au moins un nom.", "err"); return; }
+      try {
+        await patchRec(r.id, { prenom: $("p-pre").value.trim(), nom: $("p-nom").value.trim(), email: mail, fournisseur: $("p-four").value.trim() || "Non précisé", reference: $("p-ref").value.trim(), contenu: $("p-cont").value.trim(), date_prevue: $("p-date").value });
+        $("ed").hidden = true; toast("✅ Commande modifiée.", "ok"); load();
+      } catch (err) { toast(err.message, "err"); }
+    };
+  }
   async function undoRec(r) {
     if (!confirm("Annuler cette réception ?\n\n" + who(r) + "\n\nLa commande redevient « attendue » et réapparaît chez les opérateurs. Le mail déjà envoyé au commandeur ne peut pas être rappelé" + (r.hasPhoto ? ", et la photo sera supprimée." : "."))) return;
     // la photo est partagée par le lot : on ne supprime le fichier que si personne d'autre ne l'utilise
@@ -246,6 +272,7 @@
   $("ed").addEventListener("click", (e) => { if (e.target === $("ed")) $("ed").hidden = true; });
 
   $("rows").onclick = async (e) => {
+    const bp = e.target.closest("[data-editp]"); if (bp) { openEditP(rows.find((x) => x.id === bp.dataset.editp)); return; }
     const be = e.target.closest("[data-edit]"); if (be) { openEdit(rows.find((x) => x.id === be.dataset.edit)); return; }
     const bu = e.target.closest("[data-undo]"); if (bu) { await undoRec(rows.find((x) => x.id === bu.dataset.undo)); return; }
     const b = e.target.closest("[data-del]"); if (!b) return;
@@ -265,7 +292,7 @@
         "Statut": rc ? "Réceptionnée" : "Attendue", "Reçue le": rc ? dt(r.recu_le) : "", "Colis reçus": rc ? r.nb_recus : "",
         "Complète": rc ? (r.etat === "complete" ? "Oui" : "Non") : "", "Abîmée": rc ? (r.abime ? "Oui" : "Non") : "",
         "Lieu de mise à disposition": r.lieu, "Opérateur": r.operateur, "Commentaire": r.commentaire,
-        "Mail": rc ? MAIL[r.mail][1] : "", "Photo": r.photoUrl && r.photoUrl !== "#" ? r.photoUrl : (r.hasPhoto ? "oui" : ""),
+        "Non déclarée": r.non_declare ? "Oui" : "", "Mail": rc ? MAIL[r.mail][1] : "", "Photo": r.photoUrl && r.photoUrl !== "#" ? r.photoUrl : (r.hasPhoto ? "oui" : ""),
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);

@@ -49,6 +49,7 @@
   const pubOf = (r) => { const o = Object.assign({}, r); delete o.email; return o; };
 
   function demoMailText(r) {
+    if (!r.email) return "Pas d'adresse e-mail : aucun mail envoyé (" + (r.nom || "destinataire") + ").";
     const c = r.etat === "complete";
     return "À : " + r.email + "\nObjet : 📦 Votre commande est arrivée (" + r.fournisseur + ")\n\n" +
       "Bonjour " + r.prenom + ",\n" +
@@ -75,6 +76,25 @@
       }
       demoSave(l);
       return { lot, results };
+    },
+    async people() {
+      const seen = {}, out = [];
+      demoLoad().forEach((r) => { if (r.email && !seen[r.email]) { seen[r.email] = 1; out.push({ id: r.id, prenom: r.prenom, nom: r.nom }); } });
+      out.sort((a, b) => (a.nom + " " + a.prenom).localeCompare(b.nom + " " + b.prenom));
+      return { items: out };
+    },
+    async walkin(b) {
+      const l = demoLoad(); let prenom = "", nom = String(b.nom || "").trim(), email = "";
+      if (b.person_id) { const p = l.find((x) => x.id === b.person_id); if (!p) throw new Error("Personne introuvable."); prenom = p.prenom; nom = p.nom; email = p.email; }
+      if (!prenom && !nom) throw new Error("Indiquez le destinataire.");
+      const r = { id: "d" + Date.now(), prenom, nom, email, fournisseur: String(b.fournisseur || "").trim() || "Non précisé", contenu: b.contenu || "", reference: "", date_prevue: "", statut: "attendu", created: new Date().toISOString(), recu_le: "", operateur: "", etat: "", nb_recus: 0, abime: false, lieu: "", commentaire: "", non_declare: true };
+      l.push(r); demoSave(l);
+      return { item: pubOf(r) };
+    },
+    async walkinDiscard(b) {
+      const l = demoLoad(), r = l.find((x) => x.id === b.id);
+      if (!r || !r.non_declare || r.statut !== "attendu") throw new Error("Suppression impossible.");
+      demoSave(l.filter((x) => x !== r)); return { ok: true };
     },
     async lot(lot) {
       const rows = demoLoad().filter((r) => r.lot === lot);
@@ -115,6 +135,9 @@
     mine: (b) => call("/colis/mine", b),
     cancel: (b) => call("/colis/cancel", b),
     config: () => call("/colis/config"),
+    people: () => call("/colis/people"),
+    walkin: (b) => call("/colis/walkin", b),
+    walkinDiscard: (b) => call("/colis/walkin-discard", b),
     lot: (lot) => call("/colis/lot?lot=" + encodeURIComponent(lot)),
     sendNow: (lot) => call("/colis/send-now", { lot }),
     async photo(lot, blob) {
@@ -136,7 +159,7 @@
   document.addEventListener("DOMContentLoaded", themeBanner);
 
   // Numéro de version : à changer ICI à chaque nouvelle version, il s'affiche sous le titre de toutes les pages
-  const VERSION = "v0.12";
+  const VERSION = "v0.13";
   document.addEventListener("DOMContentLoaded", () => {
     const h = document.querySelector(".topbar h1");
     if (h) h.insertAdjacentHTML("beforeend", '<span class="ver">' + VERSION + "</span>");

@@ -27,7 +27,7 @@ function pub(r) {
     created: r.getString("created"), recu_le: r.getString("recu_le"), operateur: r.getString("operateur"),
     etat: r.getString("etat"), nb_recus: r.getInt("nb_recus"), abime: r.getBool("abime"),
     lieu: r.getString("lieu"), commentaire: r.getString("commentaire"),
-    photo_rec: r.getString("photo_rec"), photo_nom: photoNom(r), date_prevue: r.getString("date_prevue"),
+    photo_rec: r.getString("photo_rec"), photo_nom: photoNom(r), date_prevue: r.getString("date_prevue"), non_declare: r.getBool("non_declare"),
   };
 }
 
@@ -134,6 +134,13 @@ function sendMail(r) {
 
 // Envoie le mail d'une fiche et la marque comme traitée (en cas d'échec, l'erreur est conservée, pas de nouvel essai)
 function dispatch(r) {
+  // colis non déclaré dont le destinataire n'est pas dans la liste : pas d'adresse, donc pas de mail
+  if (!r.getString("email")) {
+    r.set("mail_envoye", true);
+    r.set("mail_erreur", "Pas d'e-mail (destinataire sans adresse)");
+    $app.save(r);
+    return "";
+  }
   let err = "";
   try { sendMail(r); } catch (e) { err = String(e); console.log("colis: envoi mail impossible : " + err); }
   r.set("mail_envoye", true);

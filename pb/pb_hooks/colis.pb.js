@@ -51,6 +51,57 @@ routerAdd("GET", "/colis/logo", (e) => {
   return e.blob(200, "image/" + m[1], L.b64decode(m[2]));
 });
 
+// GET /colis/people : personnes connues (prénom, nom), pour saisir un colis arrivé sans déclaration. L'e-mail ne sort JAMAIS :
+// l'identifiant renvoyé est celui d'une de leurs commandes, le serveur y retrouve l'adresse.
+routerAdd("GET", "/colis/people", (e) => {
+  const rows = $app.findRecordsByFilter("colis", "email != ''", "-created", 2000, 0);
+  const seen = {}, out = [];
+  rows.forEach((r) => {
+    const k = r.getString("email");
+    if (seen[k]) return;
+    seen[k] = true;
+    out.push({ id: r.id, prenom: r.getString("prenom"), nom: r.getString("nom") });
+  });
+  out.sort((a, b) => (a.nom + " " + a.prenom).localeCompare(b.nom + " " + b.prenom));
+  return e.json(200, { items: out });
+});
+
+// POST /colis/walkin : l'opérateur saisit un colis arrivé sans déclaration (la fiche est créée « attendue » ;
+// il la valide ensuite comme n'importe quelle réception). { person_id | nom, fournisseur, contenu }
+routerAdd("POST", "/colis/walkin", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const b = e.requestInfo().body || {};
+  let prenom = "", nom = L.clean(b.nom, 120), email = "";
+  if (b.person_id) {
+    try {
+      const p = $app.findRecordById("colis", String(b.person_id));
+      prenom = p.getString("prenom"); nom = p.getString("nom"); email = p.getString("email");
+    } catch (err) { return e.json(404, { message: "Personne introuvable." }); }
+  }
+  if (!nom && !prenom) return e.json(400, { message: "Indiquez le destinataire." });
+  const rec = new Record($app.findCollectionByNameOrId("colis"));
+  rec.set("prenom", prenom);
+  rec.set("nom", nom);
+  rec.set("email", email);
+  rec.set("fournisseur", L.clean(b.fournisseur, 80) || "Non précisé");
+  rec.set("contenu", L.clean(b.contenu, 200));
+  rec.set("statut", "attendu");
+  rec.set("non_declare", true);
+  $app.save(rec);
+  return e.json(200, { item: L.pub(rec) });
+});
+
+// POST /colis/walkin-discard { id } : l'opérateur abandonne la saisie (seulement une fiche « non déclarée » encore attendue, créée il y a moins d'une heure)
+routerAdd("POST", "/colis/walkin-discard", (e) => {
+  const b = e.requestInfo().body || {};
+  let rec;
+  try { rec = $app.findRecordById("colis", String(b.id)); } catch (err) { return e.json(404, { message: "Introuvable." }); }
+  const age = Date.now() - new Date(rec.getString("created").replace(" ", "T")).getTime();
+  if (!rec.getBool("non_declare") || rec.getString("statut") !== "attendu" || age > 3600000) return e.json(400, { message: "Suppression impossible." });
+  $app.delete(rec);
+  return e.json(200, { ok: true });
+});
+
 // POST /colis/declare : le commandeur déclare une commande attendue
 routerAdd("POST", "/colis/declare", (e) => {
   const L = require(`${__hooks}/colis-lib.js`);

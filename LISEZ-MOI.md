@@ -51,6 +51,24 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 - La date prévue figure aussi dans l'admin (colonne « Prévue le ») et dans l'export Excel.
 - Cette version ajoute la migration `1791000005_date_prevue.js` : après la mise à jour, **redémarrer PocketBase** (`sudo systemctl restart pocketbase-colis`).
 
+## Commande en retard
+
+Une commande encore **attendue** dont la date prévue est **dépassée** a un contour **orange** et affiche « en retard de N j (prévue le jj/mm/aaaa) » (tuiles et liste).
+
+## Colis non déclaré (réception)
+
+Bouton **＋ Colis non déclaré**, dans la barre de recherche de l'écran de réception :
+1. L'opérateur choisit le **destinataire dans la liste des personnes connues** (celles qui ont déjà déclaré une commande ; recherche au clavier à l'écran). Leur adresse e-mail n'est jamais affichée : le serveur la retrouve et le mail part normalement. Si la personne n'est pas dans la liste, il saisit son nom (**aucun mail** n'est alors envoyé).
+2. Il indique le fournisseur et le contenu (facultatifs, « Non précisé » par défaut).
+3. La fenêtre habituelle de validation s'ouvre (colis reçus, état, lieu, opérateur, commentaire), puis le QR code de la photo. Si l'opérateur abandonne à cette étape, la fiche créée est supprimée.
+Le colis apparaît avec le repère « non déclaré » et, dans l'admin, une pastille « non déclarée » (et « Sans e-mail » si le destinataire n'a pas d'adresse).
+
+## Modifier une commande attendue (admin)
+
+Bouton ✏️ sur chaque ligne « Attendue » : prénom, nom, **adresse e-mail**, fournisseur, n° de commande, contenu, date prévue.
+
+- Cette version ajoute la migration `1791000006_non_declare.js` : **redémarrer PocketBase** après la mise à jour (`sudo systemctl restart pocketbase-colis`).
+
 ## Zoom de l'écran de réception
 
 Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** (60 à 160 %) avec les boutons **−** et **+** ; toucher le pourcentage revient à 100 %. Il agrandit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) et le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
