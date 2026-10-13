@@ -113,6 +113,9 @@
   const fhead = (name) => { const st = RC.fStyle(name); return `<div class="t5-head" style="background:${st.bg};color:${st.fg}">${st.logo ? `<img class="flogo" alt="" src="${st.logo}">` : ""}<span>${esc(name)}</span></div>`; };
   const fpill = (name) => { const st = RC.fStyle(name); return `<span class="fpill" style="background:${st.bg};color:${st.fg}">${st.logo ? `<img class="flogo" alt="" src="${st.logo}">` : ""}${esc(name)}</span>`; };
 
+  const isToday = (r) => !!r.date_prevue && r.date_prevue === RC.todayStr();
+  const prevTxt = (r) => !r.date_prevue ? "" : isToday(r) ? "<span class=\"prev now\">attendue aujourd'hui</span>" : "<span class=\"prev\">prévue le " + RC.fmtDay(r.date_prevue) + "</span>";
+
   function tile(r) {
     if (r.statut === "recu") {
       const st = stateOf(r);
@@ -124,11 +127,11 @@
         ${photoTag(r)}</div></div>`;
     }
     const on = sel.has(r.id);
-    return `<button class="tile t5 ${on ? "sel" : ""}" data-id="${esc(r.id)}"><span class="check">${on ? "✓" : ""}</span>
+    return `<button class="tile t5 ${on ? "sel" : ""} ${isToday(r) ? "today" : ""}" data-id="${esc(r.id)}"><span class="check">${on ? "✓" : ""}</span>
       ${fhead(r.fournisseur)}
       <div class="t5-body"><div class="who">${esc(nomComplet(r))}</div>
       ${r.contenu ? `<div class="what">${esc(r.contenu)}</div>` : ""}
-      <div class="meta">${r.reference ? `<span>N° ${esc(r.reference)}</span>` : ""}<span>déclarée le ${fmtDate(r.created)}</span></div></div></button>`;
+      <div class="meta">${r.reference ? `<span>N° ${esc(r.reference)}</span>` : ""}<span>déclarée le ${fmtDate(r.created)}</span>${prevTxt(r)}</div></div></button>`;
   }
 
   function row(r) {
@@ -138,8 +141,8 @@
         <span class="state ${st.bad ? "warn" : "ok"}">${st.bad ? "⚠️" : "✅"} ${st.txt}</span><span class="lm">📍 ${esc(r.lieu)}<br>${fmtDate(r.recu_le)}</span>${photoTag(r) || "<span></span>"}</div>`;
     }
     const on = sel.has(r.id);
-    return `<button class="lrow ${on ? "sel" : ""}" data-id="${esc(r.id)}"><span class="lf">${fpill(r.fournisseur)}</span><span class="ln">${esc(nomComplet(r))}</span><span class="lc">${esc(r.contenu)}${r.reference ? ` <small>(N° ${esc(r.reference)})</small>` : ""}</span>
-      <span class="lm">${fmtDate(r.created)}</span><span class="check">${on ? "✓" : ""}</span></button>`;
+    return `<button class="lrow ${on ? "sel" : ""} ${isToday(r) ? "today" : ""}" data-id="${esc(r.id)}"><span class="lf">${fpill(r.fournisseur)}</span><span class="ln">${esc(nomComplet(r))}</span><span class="lc">${esc(r.contenu)}${r.reference ? ` <small>(N° ${esc(r.reference)})</small>` : ""}</span>
+      <span class="lm">${fmtDate(r.created)}${prevTxt(r) ? "<br>" + prevTxt(r) : ""}</span><span class="check">${on ? "✓" : ""}</span></button>`;
   }
 
   // ---------- événements de la liste ----------

@@ -62,7 +62,7 @@
       <button class="btn small" id="export">📊 Exporter en Excel</button>
     </div>
     <div class="tablewrap"><table><thead><tr>
-      <th>Déclarée le</th><th>Nom</th><th>Prénom</th><th>E-mail</th><th>Fournisseur</th><th>Contenu</th><th>N° commande</th>
+      <th>Déclarée le</th><th>Nom</th><th>Prénom</th><th>E-mail</th><th>Fournisseur</th><th>Contenu</th><th>N° commande</th><th>Prévue le</th>
       <th>Statut</th><th>Reçue le</th><th>Colis</th><th>Complète</th><th>Abîmée</th><th>Lieu</th><th>Opérateur</th><th>Commentaire</th><th>Mail</th><th>Photo</th><th></th>
     </tr></thead><tbody id="rows"></tbody></table></div>
     <p class="note" id="count"></p>
@@ -192,7 +192,7 @@
     const list = filtered();
     $("rows").innerHTML = list.map((r) => {
       const rc = r.statut === "recu";
-      return `<tr><td class="nowrap">${dt(r.created)}</td><td><b>${esc((r.nom || "").toUpperCase())}</b></td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.fournisseur)}</td><td>${esc(r.contenu)}</td><td>${esc(r.reference)}</td>
+      return `<tr><td class="nowrap">${dt(r.created)}</td><td><b>${esc((r.nom || "").toUpperCase())}</b></td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.fournisseur)}</td><td>${esc(r.contenu)}</td><td>${esc(r.reference)}</td><td class="nowrap">${esc(RC.fmtDay(r.date_prevue))}</td>
         <td>${rc ? '<span class="pill ok">Réceptionnée</span>' : '<span class="pill att">Attendue</span>'}</td>
         <td class="nowrap">${rc ? dt(r.recu_le) : ""}</td><td>${rc ? r.nb_recus : ""}</td>
         <td>${rc ? (r.etat === "complete" ? '<span class="pill ok">Oui</span>' : '<span class="pill warn">Non</span>') : ""}</td>
@@ -201,7 +201,7 @@
         <td>${rc ? `<span class="pill ${MAIL[r.mail][0]}" ${r.mail_erreur ? `title="${esc(r.mail_erreur)}"` : ""}>${MAIL[r.mail][1]}</span>` : ""}</td>
         <td>${r.photoUrl && r.photoUrl !== "#" ? `<a href="${esc(r.photoUrl)}" target="_blank">📷 Voir</a>` : r.hasPhoto ? "📷" : ""}</td>
         <td class="nowrap">${rc ? `<button class="del act" title="Modifier cette réception" data-edit="${esc(r.id)}">✏️</button><button class="del act" title="Annuler cette réception (la commande redevient attendue)" data-undo="${esc(r.id)}">↩️</button>` : ""}<button class="del" title="Supprimer cette ligne" data-del="${esc(r.id)}">🗑</button></td></tr>`;
-    }).join("") || '<tr><td colspan="18" class="note" style="text-align:center;padding:30px">Aucune ligne.</td></tr>';
+    }).join("") || '<tr><td colspan="19" class="note" style="text-align:center;padding:30px">Aucune ligne.</td></tr>';
     $("count").textContent = list.length + " ligne" + (list.length > 1 ? "s" : "") + " affichée" + (list.length > 1 ? "s" : "") + " sur " + rows.length + ".";
     $("export").textContent = "📊 Exporter en Excel (" + list.length + ")";
   }
@@ -261,7 +261,7 @@
     const data = list.map((r) => {
       const rc = r.statut === "recu";
       return {
-        "Déclarée le": dt(r.created), "Nom": r.nom, "Prénom": r.prenom, "E-mail": r.email, "Fournisseur": r.fournisseur, "Contenu": r.contenu, "N° commande": r.reference,
+        "Déclarée le": dt(r.created), "Nom": r.nom, "Prénom": r.prenom, "E-mail": r.email, "Fournisseur": r.fournisseur, "Contenu": r.contenu, "N° commande": r.reference, "Prévue le": RC.fmtDay(r.date_prevue),
         "Statut": rc ? "Réceptionnée" : "Attendue", "Reçue le": rc ? dt(r.recu_le) : "", "Colis reçus": rc ? r.nb_recus : "",
         "Complète": rc ? (r.etat === "complete" ? "Oui" : "Non") : "", "Abîmée": rc ? (r.abime ? "Oui" : "Non") : "",
         "Lieu de mise à disposition": r.lieu, "Opérateur": r.operateur, "Commentaire": r.commentaire,

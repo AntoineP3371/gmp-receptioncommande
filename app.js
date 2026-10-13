@@ -7,6 +7,9 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* navigation privée */ } };
+  // date du jour (heure locale du poste) au format AAAA-MM-JJ, et affichage JJ/MM/AAAA
+  function todayStr() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function fmtDay(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : ""; }
   const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
   const nomComplet = (r) => (r.nom || "").toUpperCase() + " " + (r.prenom || "");
 
@@ -31,7 +34,7 @@
         created: new Date(now - i * 3600e3 * 5).toISOString(), recu_le: "", operateur: "", etat: "", nb_recus: 0, abime: false, lieu: "", commentaire: "",
       });
       l = [
-        mk(1, "Camille", "Martin", "camille.martin@example.com", "RS", "Roulements 6204 + vis M6", "CMD-1042"),
+        Object.assign(mk(1, "Camille", "Martin", "camille.martin@example.com", "RS", "Roulements 6204 + vis M6", "CMD-1042"), { date_prevue: todayStr() }),
         mk(2, "Lucas", "Bernard", "lucas.bernard@example.com", "Amazon", "Câbles et connecteurs", ""),
         mk(3, "Inès", "Dubois", "ines.dubois@example.com", "Mouser", "Cartes Arduino", "SAE-12"),
         mk(4, "Hugo", "Moreau", "hugo.moreau@example.com", "Misumi", "Guidages linéaires", "MIS-778"),
@@ -57,7 +60,7 @@
     async list() { return { items: demoLoad().map(pubOf).sort((a, b) => b.created.localeCompare(a.created)) }; },
     async declare(b) {
       const l = demoLoad();
-      const r = { id: "d" + Date.now(), prenom: b.prenom, nom: b.nom, email: String(b.email).toLowerCase(), fournisseur: b.fournisseur, contenu: b.contenu || "", reference: b.reference || "", statut: "attendu", created: new Date().toISOString(), recu_le: "", operateur: "", etat: "", nb_recus: 0, abime: false, lieu: "", commentaire: "" };
+      const r = { id: "d" + Date.now(), prenom: b.prenom, nom: b.nom, email: String(b.email).toLowerCase(), fournisseur: b.fournisseur, contenu: b.contenu || "", reference: b.reference || "", date_prevue: /^\d{4}-\d{2}-\d{2}$/.test(b.date_prevue || "") ? b.date_prevue : "", statut: "attendu", created: new Date().toISOString(), recu_le: "", operateur: "", etat: "", nb_recus: 0, abime: false, lieu: "", commentaire: "" };
       l.push(r); demoSave(l);
       return { item: pubOf(r) };
     },
@@ -133,7 +136,7 @@
   document.addEventListener("DOMContentLoaded", themeBanner);
 
   // Numéro de version : à changer ICI à chaque nouvelle version, il s'affiche sous le titre de toutes les pages
-  const VERSION = "v0.11";
+  const VERSION = "v0.12";
   document.addEventListener("DOMContentLoaded", () => {
     const h = document.querySelector(".topbar h1");
     if (h) h.insertAdjacentHTML("beforeend", '<span class="ver">' + VERSION + "</span>");
@@ -179,5 +182,5 @@
   function setEmojis(map) { opEmojis = {}; Object.keys(map || {}).forEach((k) => { opEmojis[normKey(k)] = decodeEmoji(map[k]); }); }
   const emojiOf = (name) => opEmojis[normKey(name)] || "";
 
-  window.RC = { version: VERSION, api: demo ? demoApi : pbApi, setEmojis, emojiOf, decodeEmoji, setStyles, fStyle, autoColor, normKey, demo, demoAdmin, PB, photoUrl, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
+  window.RC = { todayStr, fmtDay, version: VERSION, api: demo ? demoApi : pbApi, setEmojis, emojiOf, decodeEmoji, setStyles, fStyle, autoColor, normKey, demo, demoAdmin, PB, photoUrl, esc, lsGet, lsSet, fmtDate, nomComplet, toast };
 })();

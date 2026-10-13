@@ -67,6 +67,8 @@ routerAdd("POST", "/colis/declare", (e) => {
   rec.set("fournisseur", fournisseur);
   rec.set("contenu", L.clean(b.contenu, 200));
   rec.set("reference", L.clean(b.reference, 80));
+  const dp = String(b.date_prevue || "");
+  rec.set("date_prevue", /^\d{4}-\d{2}-\d{2}$/.test(dp) ? dp : "");
   rec.set("statut", "attendu");
   $app.save(rec);
   return e.json(200, { item: L.pub(rec) });

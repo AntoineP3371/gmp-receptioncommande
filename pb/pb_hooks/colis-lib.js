@@ -27,7 +27,7 @@ function pub(r) {
     created: r.getString("created"), recu_le: r.getString("recu_le"), operateur: r.getString("operateur"),
     etat: r.getString("etat"), nb_recus: r.getInt("nb_recus"), abime: r.getBool("abime"),
     lieu: r.getString("lieu"), commentaire: r.getString("commentaire"),
-    photo_rec: r.getString("photo_rec"), photo_nom: photoNom(r),
+    photo_rec: r.getString("photo_rec"), photo_nom: photoNom(r), date_prevue: r.getString("date_prevue"),
   };
 }
 

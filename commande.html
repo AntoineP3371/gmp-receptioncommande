@@ -25,7 +25,9 @@
         <div class="chips" id="fourchips" style="margin-top:8px"></div>
       </div>
       <div class="full"><label for="contenu">Contenu de la commande <small>(en quelques mots)</small></label><input id="contenu" placeholder="Ex. roulements, vis M6, câbles"></div>
-      <div class="full"><label for="ref">N° de commande ou de projet <small>(facultatif)</small></label><input id="ref"></div>
+      <div><label for="ref">N° de commande ou de projet <small>(facultatif)</small></label><input id="ref"></div>
+      <div><label for="dprevue">Date de réception prévue <small>(facultatif)</small></label><input id="dprevue" type="date"></div>
+      <p class="note full" style="margin:-4px 0 0">Si vous indiquez une date, votre commande sera mise en évidence à l'écran de réception ce jour-là.</p>
       <div class="full"><button class="btn" type="submit" style="width:100%">Enregistrer ma commande</button></div>
     </form>
   </div>
@@ -69,19 +71,19 @@
           badge = `<span class="badge ${bad ? "warn" : "ok"}">${bad ? "⚠️" : "✅"} Arrivée</span>`;
           extra = `<br>📍 ${esc(r.lieu)} — ${(r.etat === "complete" ? "complète" : "incomplète") + ", " + r.nb_recus + " colis"}${r.abime ? ", abîmée" : ""}${r.commentaire ? "<br>💬 " + esc(r.commentaire) : ""}`;
         }
-        return `<div class="row"><div class="t"><b>${esc(r.fournisseur)}</b> — ${esc(r.contenu || "")}${r.reference ? " <small>(" + esc(r.reference) + ")</small>" : ""}${extra}<br><small class="note">Déclarée le ${fmtDate(r.created)}</small></div>${badge}${r.statut === "attendu" ? `<button class="btn ghost small" data-cancel="${esc(r.id)}">Annuler</button>` : ""}</div>`;
+        return `<div class="row"><div class="t"><b>${esc(r.fournisseur)}</b> — ${esc(r.contenu || "")}${r.reference ? " <small>(" + esc(r.reference) + ")</small>" : ""}${extra}<br><small class="note">Déclarée le ${fmtDate(r.created)}${r.date_prevue && r.statut === "attendu" ? " · réception prévue le " + RC.fmtDay(r.date_prevue) : ""}</small></div>${badge}${r.statut === "attendu" ? `<button class="btn ghost small" data-cancel="${esc(r.id)}">Annuler</button>` : ""}</div>`;
       }).join("");
     } catch (e) { box.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
   }
 
   $("f").onsubmit = async (ev) => {
     ev.preventDefault();
-    const body = { prenom: $("prenom").value.trim(), nom: $("nom").value.trim(), email: $("email").value.trim(), fournisseur: $("four").value.trim(), contenu: $("contenu").value.trim(), reference: $("ref").value.trim() };
+    const body = { prenom: $("prenom").value.trim(), nom: $("nom").value.trim(), email: $("email").value.trim(), fournisseur: $("four").value.trim(), contenu: $("contenu").value.trim(), reference: $("ref").value.trim(), date_prevue: $("dprevue").value };
     try {
       await api.declare(body);
       lsSet("rc_me", { prenom: body.prenom, nom: body.nom, email: body.email });
       toast("✅ Commande enregistrée. Vous serez prévenu(e) par e-mail.", "ok");
-      ["four", "contenu", "ref"].forEach((k) => $(k).value = "");
+      ["four", "contenu", "ref", "dprevue"].forEach((k) => $(k).value = "");
       loadMine();
     } catch (e) { toast(e.message, "err"); }
   };

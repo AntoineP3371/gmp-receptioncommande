@@ -44,6 +44,13 @@ Laissez `PB_URL` vide dans `config.js` et ouvrez `index.html` : tout marche, des
 - **✏️ Renommer** (admin, onglet « Fournisseurs courants ») : change le nom d'un fournisseur dans la liste **et dans toutes les commandes existantes** ; la couleur et le logo suivent. Si le nouveau nom existe déjà, les deux fournisseurs sont **fusionnés** (utile pour corriger une faute de frappe). Les mails déjà envoyés ne changent pas.
 - Cette version ajoute la migration `1791000004_config_logos.js` : **redémarrer PocketBase** après la mise à jour.
 
+## Date de réception prévue
+
+- Dans « J'attends une commande », le commandeur peut indiquer (facultatif) la **date à laquelle il attend sa commande**.
+- À l'écran de réception, **le jour même**, la tuile (ou la ligne en vue liste) est entourée d'un **halo bleu** et affiche « attendue aujourd'hui » ; les autres jours elle affiche « prévue le jj/mm/aaaa ». La date du jour est celle du poste de réception.
+- La date prévue figure aussi dans l'admin (colonne « Prévue le ») et dans l'export Excel.
+- Cette version ajoute la migration `1791000005_date_prevue.js` : après la mise à jour, **redémarrer PocketBase** (`sudo systemctl restart pocketbase-colis`).
+
 ## Zoom de l'écran de réception
 
 Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** (60 à 160 %) avec les boutons **−** et **+** ; toucher le pourcentage revient à 100 %. Il agrandit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) et le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
