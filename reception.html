@@ -17,23 +17,29 @@
   </div>
   <a class="back" href="index.html">← Accueil</a></div>
 <div class="wrap recep">
-  <div class="toolbar">
-    <div class="searchrow">
+  <div class="layout">
+    <aside class="side" id="side">
+      <div class="chips" id="chipsF"></div>
+      <div class="chips" id="chipsA"></div>
+    </aside>
+    <main class="main">
+      <div class="toolbar">
+        <div class="searchrow">
       <input id="q" type="search" placeholder="🔍 Rechercher : nom, fournisseur, contenu, n° de commande…" autocomplete="off" inputmode="search">
       <button class="btn ghost" id="clear">Effacer</button>
       <button class="btn ghost" id="walkinbtn" type="button" title="Un colis est arrivé sans avoir été déclaré">＋ Colis non déclaré</button>
       <button class="btn ghost" id="viewtoggle" type="button" title="Changer l'affichage">☰ Liste</button>
       <button class="btn ghost kbtoggle" id="kbtoggle" type="button">⌨</button>
     </div>
-    <div class="tabs">
+        <div class="tabs">
       <button class="tab on" data-tab="attendu">À réceptionner <span id="cA"></span></button>
       <button class="tab" data-tab="recu">Déjà réceptionnés (7 j) <span id="cR"></span></button>
     </div>
-    <div class="hint" id="hint"></div>
-    <div class="chips" id="chipsF"></div>
-    <div class="chips" id="chipsA"></div>
+        <div class="hint" id="hint"></div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </main>
   </div>
-  <div class="grid" id="grid"></div>
 </div>
 
 <div class="selbar" id="selbar" hidden>
@@ -52,7 +58,8 @@
 (function () {
   const { api, esc, lsGet, lsSet, fmtDate, nomComplet, toast } = RC;
   const $ = (id) => document.getElementById(id);
-  let items = [], tab = "attendu", fFour = "", fLet = "", q = "";
+  let items = [], tab = "attendu", fFour = "", fPers = "", q = "";
+  let fitted = false;
   let multi = false, longFired = false, lpTimer = null;   // multi : mode sélection multiple (appui long)
   const sel = new Map();           // id -> nb_recus
   let form = null;                 // état de la fenêtre de validation
@@ -69,7 +76,7 @@
   function visibleBase() { return items.filter((r) => r.statut === tab); }
   function matches(r) {
     if (fFour && r.fournisseur !== fFour) return false;
-    if (fLet && norm(r.nom).charAt(0).toUpperCase() !== fLet) return false;
+    if (fPers && norm(r.nom + " " + r.prenom) !== fPers) return false;
     if (q) {
       const hay = norm([r.prenom, r.nom, r.fournisseur, r.contenu, r.reference].join(" "));
       return norm(q).split(/\s+/).every((w) => hay.includes(w));
@@ -90,11 +97,13 @@
     $("chipsF").innerHTML = '<span class="lbl">Fournisseur</span>' + (fours.length ? "" : '<span class="note">—</span>') +
       fours.map((f) => `<button class="chip ${f === fFour ? "on" : ""}" data-four="${esc(f)}"><i class="dot" style="background:${RC.fStyle(f).bg}"></i>${esc(f)}<small>${cnt[f]}</small></button>`).join("");
 
-    // alphabet sur l'initiale du nom
-    const letters = new Set(base.map((r) => norm(r.nom).charAt(0).toUpperCase()));
-    if (fLet && !letters.has(fLet)) fLet = "";
-    $("chipsA").innerHTML = '<span class="lbl">Nom commence par</span>' +
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => `<button class="chip az ${l === fLet ? "on" : ""} ${letters.has(l) ? "" : "dim"}" data-let="${l}">${l}</button>`).join("");
+    // une pastille par personne (avec le nombre de commandes), seulement celles qui ont des commandes dans l'onglet
+    const pc = {};
+    base.forEach((r) => { const k = norm(r.nom + " " + r.prenom); if (!pc[k]) pc[k] = { n: 0, label: nomComplet(r) }; pc[k].n++; });
+    const pers = Object.keys(pc).sort((x, y) => x.localeCompare(y, "fr"));
+    if (fPers && !pc[fPers]) fPers = "";
+    $("chipsA").innerHTML = '<span class="lbl">Personne</span>' + (pers.length ? "" : '<span class="note">—</span>') +
+      pers.map((k) => `<button class="chip ${k === fPers ? "on" : ""}" data-pers="${esc(k)}">${esc(pc[k].label)}<small>${pc[k].n}</small></button>`).join("");
 
     const list = base.filter(matches);
     $("grid").className = vue === "liste" ? "grid lst" : "grid";
@@ -108,6 +117,7 @@
     $("hint").hidden = tab !== "attendu";
     $("hint").textContent = multi ? "Sélection multiple : touchez les commandes à ajouter, puis validez en bas de l'écran." : "Touchez une commande pour la réceptionner · appui long pour en sélectionner plusieurs.";
     $("selcount").textContent = n + " commande" + (n > 1 ? "s" : "") + " sélectionnée" + (n > 1 ? "s" : "");
+    if (!fitted && document.querySelector(".tile")) { fitted = true; fitNominal(); setTimeout(fitNominal, 800); }   // niveau nominal ajusté une fois les tuiles affichées
   }
 
   // ---------- affichage : tuiles (bloc fournisseur + bloc nom) ou liste en lignes ----------
@@ -187,10 +197,10 @@
     if (form) form.single = true;
   };
   $("chipsF").onclick = (e) => { const b = e.target.closest("[data-four]"); if (b) { fFour = fFour === b.dataset.four ? "" : b.dataset.four; render(); } };
-  $("chipsA").onclick = (e) => { const b = e.target.closest("[data-let]"); if (b) { fLet = fLet === b.dataset.let ? "" : b.dataset.let; render(); } };
+  $("chipsA").onclick = (e) => { const b = e.target.closest("[data-pers]"); if (b) { fPers = fPers === b.dataset.pers ? "" : b.dataset.pers; render(); } };
   document.querySelector(".tabs").onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) { tab = b.dataset.tab; multi = false; sel.clear(); render(); } };
   $("q").oninput = () => { q = $("q").value; render(); };
-  $("clear").onclick = () => { q = ""; fFour = ""; fLet = ""; $("q").value = ""; render(); };
+  $("clear").onclick = () => { q = ""; fFour = ""; fPers = ""; $("q").value = ""; render(); };
   $("viewtoggle").onclick = () => { vue = vue === "liste" ? "tuiles" : "liste"; lsSet("rc_vue", vue); render(); };
   $("selclear").onclick = () => { sel.clear(); multi = false; render(); };
   $("selgo").onclick = openForm;
@@ -502,7 +512,33 @@
 
   // ---------- zoom de tout ce qui est sous la barre du haut (mémorisé) ----------
   const ZNOM = 100, ZMIN = ZNOM - 30, ZMAX = ZNOM + 30;   // position nominale affichée « 100 % », réglage de ± 30 %
-  const ZBASE = 0.8;                                      // facteur réel de l'affichage nominal (inchangé)
+  let ZBASE = 0.8;                                        // facteur réel du niveau nominal « 100 % » : 0,8 au plus, réduit si besoin pour voir 2 rangées
+  // Ajuste le niveau nominal à l'écran : on mesure la place disponible et la hauteur des tuiles, et on choisit le plus grand
+  // facteur (0,5 à 0,8) qui laisse voir DEUX rangées de commandes sans faire défiler. Calculé au chargement et au changement de taille.
+  function fitNominal() {
+    const tile = document.querySelector(".tile");
+    if (!tile) return;                                    // aucune tuile à mesurer : on garde le facteur actuel
+    const topbar = document.querySelector(".topbar");
+    for (let i = 0; i < 4; i++) {
+      const z = parseFloat(document.documentElement.style.getPropertyValue("--z")) || ZBASE;
+      const above = ($("grid").getBoundingClientRect().top + window.scrollY - topbar.offsetHeight) / z;   // place prise au-dessus des tuiles (recherche, onglets…)
+      const th = document.querySelector(".tile").getBoundingClientRect().height / z;
+      const need = above + 2 * th + 16 + 12;               // hauteur nécessaire (sans zoom) pour 2 rangées + l'écart + une marge
+      let f = Math.floor(Math.min(0.8, (innerHeight - topbar.offsetHeight) / need) * 20) / 20;
+      f = Math.max(0.5, f);
+      if (Math.abs(f - ZBASE) < 0.001) break;
+      ZBASE = f; setZoom(+$("zoom").value);
+    }
+    // vérification : changer le zoom change le nombre de colonnes, donc la hauteur des tuiles ; on réduit tant que la 2e rangée dépasse
+    for (let k = 0; k < 8 && ZBASE > 0.5; k++) {
+      const ts = [...document.querySelectorAll(".tile")];
+      const tops = [...new Set(ts.map((t) => Math.round(t.getBoundingClientRect().top + window.scrollY)))].sort((x, y) => x - y);
+      if (tops.length < 2) break;                            // une seule rangée de tuiles : rien à vérifier
+      const bas = Math.max(...ts.filter((t) => Math.round(t.getBoundingClientRect().top + window.scrollY) === tops[1]).map((t) => t.getBoundingClientRect().bottom + window.scrollY));
+      if (bas <= innerHeight - 6) break;
+      ZBASE = Math.max(0.5, Math.round((ZBASE - 0.05) * 100) / 100); setZoom(+$("zoom").value);
+    }
+  }
   function setZoom(v) {
     v = Math.max(ZMIN, Math.min(ZMAX, Math.round(v / 5) * 5));
     document.documentElement.style.setProperty("--z", v / 100 * ZBASE);
@@ -516,7 +552,8 @@
   $("zmin").onclick = () => setZoom(+$("zoom").value - 10);
   $("zplus").onclick = () => setZoom(+$("zoom").value + 10);
   $("zval").onclick = () => setZoom(ZNOM);
-  window.addEventListener("resize", setTopH);
+  let rsz = null;
+  window.addEventListener("resize", () => { setTopH(); clearTimeout(rsz); rsz = setTimeout(fitNominal, 300); });
   setZoom(+lsGet("rc_zoom3", ZNOM) || ZNOM);
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée

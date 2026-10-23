@@ -3,7 +3,7 @@
 Pages :
 
 - `index.html` — accueil (deux gros boutons).
-- `reception.html` — **opérateurs** : tuiles de commandes, recherche, filtre par fournisseur et par initiale du nom, sélection de plusieurs commandes, validation (complète / incomplète, nombre de colis reçus, intact / abîmé, lieu de mise à disposition) → un e-mail part au commandeur.
+- `reception.html` — **opérateurs** : tuiles de commandes, recherche, filtre par fournisseur et par personne, sélection de plusieurs commandes, validation (complète / incomplète, nombre de colis reçus, intact / abîmé, lieu de mise à disposition) → un e-mail part au commandeur.
 - `admin.html` — **administration** (compte requis) : toutes les commandes et réceptions (filtres, recherche, statut du mail, photo), **export Excel** de la vue filtrée, **modification** (✏️) ou **annulation** (↩️) d'une réception, suppression d'une ligne, édition des **fournisseurs courants** et de la **liste des opérateurs**.
 - `photo.html` — page ouverte par le QR code sur le téléphone de l'opérateur (photo de la réception).
 - `commande.html` — **commandeur** : déclare sa commande (nom, e-mail, fournisseur, contenu, n° de commande), retrouve ses commandes et leur état, peut annuler.
@@ -85,6 +85,12 @@ Bouton ✏️ sur chaque ligne « Attendue » : prénom, nom, **adresse e-mail**
 
 - Cette version ajoute la migration `1791000006_non_declare.js` : **redémarrer PocketBase** après la mise à jour (`sudo systemctl restart pocketbase-colis`).
 
+## Disposition de l'écran de réception
+
+- **Colonne de filtres à gauche** : une liste verticale de **fournisseurs** (point de couleur et nombre de commandes) puis de **personnes** en attente de commande, avec de grandes zones à toucher. Elle reste affichée pendant qu'on fait défiler les tuiles et défile seule quand il y a beaucoup de personnes. Toucher un élément filtre, le retoucher retire le filtre ; **Effacer** remet tout à zéro.
+- **À droite** : la recherche, les boutons (Effacer, ＋ Colis non déclaré, ☰ Liste, ⌨), les onglets « À réceptionner » / « Déjà réceptionnés », puis les tuiles.
+- Sur un écran étroit (moins de 900 px), la colonne de filtres passe au-dessus de la recherche, en pastilles sur plusieurs lignes.
+
 ## Réceptionner une ou plusieurs commandes (écran tactile)
 
 - **Un appui** sur une commande ouvre directement la fenêtre de réception (colis reçus, état, lieu, opérateur…) : plus besoin de cocher puis de valider.
@@ -94,6 +100,8 @@ Bouton ✏️ sur chaque ligne « Attendue » : prénom, nom, **adresse e-mail**
 ## Zoom de l'écran de réception
 
 La position **nominale est affichée « 100 % »** (réglage par défaut, au centre du curseur) ; le curseur va de **70 à 130 %** (± 30 % autour du nominal). Le bouton qui affiche le pourcentage ramène à 100 %.
+
+**Le niveau nominal s'adapte à l'écran** : au chargement et quand la fenêtre change de taille, l'appli mesure la hauteur disponible et choisit la taille d'affichage la plus grande (0,8 au maximum, 0,5 au minimum) qui laisse voir **deux rangées de commandes** sans faire défiler. Sur un grand écran, l'aspect reste celui d'avant ; sur un écran moins haut, tout est un peu plus petit. Le curseur de zoom (70 à 130 %) se règle toujours autour de ce niveau nominal.
 
 Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** avec les boutons **−** et **+**. Il agrandit ou réduit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) ; le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
 
