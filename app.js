@@ -96,6 +96,14 @@
       if (!r || !r.non_declare || r.statut !== "attendu") throw new Error("Suppression impossible.");
       demoSave(l.filter((x) => x !== r)); return { ok: true };
     },
+    async undoLot(b) {
+      const l = demoLoad(), rows = l.filter((r) => r.lot === b.lot && r.statut === "recu");
+      if (!rows.length) throw new Error("Réception introuvable.");
+      if (rows.some((r) => r.mail_envoye)) throw new Error("Les mails sont déjà partis : la réception ne peut plus être annulée ici (voir l'administration).");
+      const reste = l.filter((r) => !(rows.includes(r) && r.non_declare));
+      rows.filter((r) => !r.non_declare).forEach((r) => Object.assign(r, { statut: "attendu", recu_le: "", etat: "", nb_recus: 0, abime: false, lieu: "", commentaire: "", operateur: "", lot: "", mail_envoye: false }));
+      demoSave(reste); return { ok: true };
+    },
     async lot(lot) {
       const rows = demoLoad().filter((r) => r.lot === lot);
       if (!rows.length) throw new Error("Lot introuvable.");
@@ -138,6 +146,7 @@
     people: () => call("/colis/people"),
     walkin: (b) => call("/colis/walkin", b),
     walkinDiscard: (b) => call("/colis/walkin-discard", b),
+    undoLot: (b) => call("/colis/undo-lot", b),
     lot: (lot) => call("/colis/lot?lot=" + encodeURIComponent(lot)),
     sendNow: (lot) => call("/colis/send-now", { lot }),
     async photo(lot, blob) {
@@ -159,7 +168,7 @@
   document.addEventListener("DOMContentLoaded", themeBanner);
 
   // Numéro de version : à changer ICI à chaque nouvelle version, il s'affiche sous le titre de toutes les pages
-  const VERSION = "v0.15";
+  const VERSION = "v0.16";
   document.addEventListener("DOMContentLoaded", () => {
     const h = document.querySelector(".topbar h1");
     if (h) h.insertAdjacentHTML("beforeend", '<span class="ver">' + VERSION + "</span>");

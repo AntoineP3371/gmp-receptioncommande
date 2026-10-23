@@ -10,7 +10,23 @@ Pages :
 
 Aucun contrôle d'accès sur l'accueil, la réception et la commande (choix demandé) ; seule l'administration demande un compte. Les adresses e-mail ne sont jamais renvoyées aux pages publiques : seul le commandeur les retrouve en saisissant la sienne.
 
+## Annuler à chaque étape
+
+| Étape | Annulation |
+|---|---|
+| Choix de la commande (appui long, sélection multiple) | **Annuler la sélection** |
+| Colis non déclaré (choix du destinataire) | **Annuler** |
+| Fenêtre de validation de la réception | **Annuler** (une commande ouverte d'un simple appui ne reste pas sélectionnée) |
+| **Réception enregistrée** (QR code / photo, mails pas encore partis) | **↩ Annuler la réception** : les commandes redeviennent « attendues » ; un colis non déclaré saisi par l'opérateur est supprimé |
+| Photo avec la caméra de l'appareil | **Annuler** (retour à l'étape précédente), **🔄 Reprendre** |
+| Photo sur le téléphone (QR code) | **Annuler**, **Reprendre** |
+| Après l'envoi des mails | impossible à l'écran de réception (voir l'admin : ✏️ modifier, ↩️ annuler la réception) |
+
 ## Photo de la réception (QR code)
+
+**Deux façons de prendre la photo** : soit en scannant le QR code avec un téléphone, soit avec **la caméra de l'appareil qui affiche l'appli** (bouton **📷 Prendre la photo avec cet appareil**) : aperçu en direct, 📸 prendre la photo, vérifier, 🔄 reprendre ou ✅ valider et envoyer. Si la caméra est indisponible ou refusée, le bouton propose de **choisir une photo dans les fichiers**. La caméra demande l'autorisation du navigateur à la première utilisation (page en HTTPS obligatoire, ce qui est le cas sur GitHub Pages).
+
+Rappel du principe :
 
 1. L'opérateur valide la réception sur le PC → un **QR code** s'affiche.
 2. Il le scanne avec un téléphone → `photo.html` s'ouvre : **Prendre la photo**, puis **Valider et envoyer**, **Reprendre** ou **Annuler**.

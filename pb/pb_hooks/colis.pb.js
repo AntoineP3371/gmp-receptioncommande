@@ -200,6 +200,23 @@ routerAdd("POST", "/colis/photo", (e) => {
   return e.json(200, { sent: true, erreur: erreur });
 });
 
+// POST /colis/undo-lot { lot } : l'opérateur annule la réception qu'il vient de saisir, TANT QUE les mails ne sont pas partis.
+// Les commandes redeviennent « attendues » ; un colis non déclaré (créé par l'opérateur) est supprimé.
+routerAdd("POST", "/colis/undo-lot", (e) => {
+  const L = require(`${__hooks}/colis-lib.js`);
+  const rows = L.lotRecords(L.clean((e.requestInfo().body || {}).lot, 60));
+  if (!rows.length) return e.json(404, { message: "Réception introuvable." });
+  if (rows.some((r) => r.getBool("mail_envoye"))) return e.json(409, { message: "Les mails sont déjà partis : la réception ne peut plus être annulée ici (voir l'administration)." });
+  rows.forEach((r) => {
+    if (r.getBool("non_declare")) { $app.delete(r); return; }
+    r.set("statut", "attendu"); r.set("recu_le", ""); r.set("etat", ""); r.set("nb_recus", 0); r.set("abime", false);
+    r.set("lieu", ""); r.set("commentaire", ""); r.set("operateur", ""); r.set("lot", "");
+    r.set("mail_envoye", false); r.set("mail_erreur", ""); r.set("photo_rec", ""); r.set("photo_nom", "");
+    $app.save(r);
+  });
+  return e.json(200, { ok: true });
+});
+
 // POST /colis/mine { email } : le commandeur retrouve ses colis
 routerAdd("POST", "/colis/mine", (e) => {
   const L = require(`${__hooks}/colis-lib.js`);

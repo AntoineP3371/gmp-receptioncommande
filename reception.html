@@ -254,6 +254,7 @@
   $("sheet").onclick = async (e) => {
     const b = e.target.closest("button"); if (!b || !form) return;
     if (form.walkin) { await walkClick(b); return; }
+    if (form.camera) { await camClick(b); return; }
     keepText();
     const d = b.dataset;
     if (d.etat) form.etat = d.etat;
@@ -272,6 +273,8 @@
       }
       $("ov").hidden = true; form = null; clearInterval(pollTimer); await load(); return;
     }
+    else if (b.id === "fcam") { await camOpen(form.lot); return; }
+    else if (b.id === "fundo") { await undoLot(); return; }
     else if (b.id === "fnophoto") {
       b.disabled = true;
       try { await api.sendNow(form.lot); toast("Mails envoyés sans photo.", "ok"); } catch (err) { toast(err.message, "err"); b.disabled = false; }
@@ -315,12 +318,13 @@
           ${RC.demo ? `<p class="note">Mode démo : <a href="${esc(photoUrl)}" target="_blank">ouvrir la page photo dans ce navigateur</a></p>` : ""}
         </div>
         <div class="scol">
+          <button class="btn camcta" id="fcam" type="button">📷 Prendre la photo avec cet appareil</button>
           <div id="lotstate" class="lotstate">⏳ En attente de la photo…</div>
           <div id="lotmails"></div>
           <p class="note">Sans photo, le mail part tout seul au bout de 10 minutes.</p>
         </div>
       </div>
-      <div class="sfoot"><div class="actions" style="margin:0"><button class="btn ghost" id="fnophoto">Envoyer sans photo</button><button class="btn" id="fclose">Terminer</button></div></div>`;
+      <div class="sfoot"><div class="actions" style="margin:0"><button class="btn ghost red" id="fundo">↩ Annuler la réception</button><button class="btn ghost" id="fnophoto">Envoyer sans photo</button><button class="btn" id="fclose">Terminer</button></div></div>`;
     $("ov").hidden = false;
     clearInterval(pollTimer);
     const poll = async () => {
@@ -331,12 +335,93 @@
           clearInterval(pollTimer);
           $("lotstate").className = "lotstate ok";
           $("lotstate").textContent = st.erreur ? "⚠️ Réception enregistrée, mais le mail n'a pas pu partir (réglage SMTP ?)." : (st.photo ? "✅ Photo reçue, mails envoyés avec la photo." : "✅ Mails envoyés (sans photo).");
-          if ($("fnophoto")) $("fnophoto").hidden = true;
+          ["fnophoto", "fcam", "fundo"].forEach((i) => { if ($(i)) $(i).hidden = true; });
           if (RC.demo && st.demoMails) $("lotmails").innerHTML = '<p class="note">Mode démo — voici ce qui serait parti :</p>' + st.demoMails.map((m) => `<div class="mailprev">${esc(m)}</div>`).join("");
         }
       } catch (e) { /* nouvelle tentative au prochain tour */ }
     };
     pollTimer = setInterval(poll, 2500);
+  }
+
+  // ---------- annuler toute la réception (tant que les mails ne sont pas partis) ----------
+  async function undoLot() {
+    const NL = String.fromCharCode(10);
+    if (!confirm("Annuler cette réception ?" + NL + NL + "Les commandes redeviennent « attendues » et aucun mail ne sera envoyé.")) return;
+    try {
+      await api.undoLot({ lot: form.lot });
+      clearInterval(pollTimer); $("ov").hidden = true; form = null;
+      toast("Réception annulée : les commandes sont de nouveau attendues.", "ok");
+      await load();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  // ---------- photo prise avec l'appareil sur lequel l'appli est ouverte ----------
+  let cam = null;
+  const camStop = () => { if (cam && cam.stream) cam.stream.getTracks().forEach((t) => t.stop()); };
+  const camBlob = (src, w, h) => new Promise((resolve, reject) => {     // réduit la photo (1280 px max, JPEG 70 %)
+    const k = Math.min(1, 1280 / Math.max(w, h));
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+    c.toBlob((b) => (b ? resolve(b) : reject(new Error("Photo illisible"))), "image/jpeg", 0.7);
+  });
+  function camDraw() {
+    const c = cam, review = c.phase === "review";
+    $("sheet").className = "sheet full";
+    $("sheet").innerHTML = `<div class="shead"><h2>Photo de la réception</h2><span class="note">avec cet appareil</span></div>
+      <div class="sbody" style="grid-template-columns:minmax(0,1fr)"><div class="scol camcol">
+        ${review ? `<img id="camimg" alt="Aperçu de la photo" src="${c.url}">` : c.stream ? '<video id="camv" autoplay playsinline muted></video>' : `<p class="note">${esc(c.msg)}</p>`}
+        ${c.err ? `<div class="err">${esc(c.err)}</div>` : ""}
+      </div></div>
+      <div class="sfoot"><div class="actions" style="margin:0">
+        <button class="btn ghost" id="camcancel">Annuler</button>
+        ${review ? '<button class="btn ghost" id="camagain">🔄 Reprendre</button><button class="btn" id="camok">✅ Valider et envoyer</button>'
+          : c.stream ? '<button class="btn" id="camshot">📸 Prendre la photo</button>' : '<button class="btn" id="camfile">📁 Choisir une photo</button>'}
+      </div></div>`;
+    if (!review && c.stream && $("camv")) $("camv").srcObject = c.stream;
+  }
+  async function camOpen(lot) {
+    cam = { lot, phase: "live", stream: null, blob: null, url: "", msg: "", err: "" };
+    form = { camera: true, lot };
+    clearInterval(pollTimer);                    // le suivi reprend au retour sur l'écran précédent
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("pas de caméra");
+      cam.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    } catch (e) { cam.msg = "Caméra indisponible ou refusée sur cet appareil. Vous pouvez choisir une photo dans les fichiers, ou scanner le QR code avec un téléphone."; }
+    camDraw();
+  }
+  function camBack() {                           // retour à l'étape « Réception enregistrée »
+    camStop(); if (cam && cam.url) URL.revokeObjectURL(cam.url);
+    const lot = cam.lot; cam = null; step2(lot);
+  }
+  async function camClick(b) {
+    const id = b.id;
+    if (id === "camcancel") { camBack(); return; }
+    if (id === "camshot") {
+      const v = $("camv");
+      if (!v || !v.videoWidth) { cam.err = "La caméra n'est pas encore prête, réessayez dans un instant."; camDraw(); return; }
+      try { cam.blob = await camBlob(v, v.videoWidth, v.videoHeight); cam.url = URL.createObjectURL(cam.blob); cam.phase = "review"; cam.err = ""; } catch (e) { cam.err = e.message; }
+      camDraw(); return;
+    }
+    if (id === "camagain") { if (cam.url) URL.revokeObjectURL(cam.url); cam.url = ""; cam.blob = null; cam.phase = "live"; cam.err = ""; camDraw(); return; }
+    if (id === "camfile") {
+      const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.setAttribute("capture", "environment");
+      inp.onchange = async () => {
+        const f = inp.files[0]; if (!f) return;
+        try {
+          const img = new Image(), u = URL.createObjectURL(f);
+          await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("Image illisible.")); img.src = u; });
+          cam.blob = await camBlob(img, img.width, img.height); URL.revokeObjectURL(u);
+          cam.url = URL.createObjectURL(cam.blob); cam.phase = "review"; cam.err = "";
+        } catch (e) { cam.err = e.message; }
+        camDraw();
+      };
+      inp.click(); return;
+    }
+    if (id === "camok") {
+      b.disabled = true; b.textContent = "Envoi…";
+      try { await api.photo(cam.lot, cam.blob); toast("✅ Photo envoyée, mails partis.", "ok"); camBack(); }
+      catch (e) { cam.err = e.message; camDraw(); }
+    }
   }
 
   // ---------- colis arrivé sans déclaration : l'opérateur choisit le destinataire parmi les personnes connues ----------
