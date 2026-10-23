@@ -315,3 +315,10 @@ b.nd { color: var(--orange); font-weight: 800; font-size: .8rem; }
   .side .chip { border-radius: 999px; min-height: 44px; }
   .side .chip small { margin-left: 4px; padding-left: 0; }
 }
+
+/* toutes les tuiles de commande ont la même taille : mêmes colonnes, et toutes les rangées à la hauteur de la plus haute ; textes longs coupés sur 2 lignes */
+.recep .grid:not(.lst) { grid-auto-rows: 1fr; }
+.recep .grid:not(.lst) .tile { height: 100%; }
+.t5 .who, .t5 .what, .t5-head span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.t5-head span { -webkit-line-clamp: 2; }
+.lrow { min-height: 72px; }

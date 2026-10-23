@@ -97,11 +97,15 @@ Bouton ✏️ sur chaque ligne « Attendue » : prénom, nom, **adresse e-mail**
 - **Un appui long** (environ une demi-seconde) sur une commande lance la **sélection multiple** : des **cases à cocher** apparaissent sur toutes les commandes, on touche celles à ajouter, puis **Valider la réception →** en bas. **Annuler la sélection** (ou décocher la dernière commande) revient au mode normal.
 - Un appui long marche aussi en vue liste.
 
+## Tuiles de commande : toutes de la même taille
+
+Toutes les tuiles ont exactement les mêmes dimensions (même largeur, et toutes les rangées à la hauteur de la plus haute). Les textes longs (contenu, nom de fournisseur, nom) sont coupés sur 2 lignes au lieu d'agrandir la tuile.
+
 ## Zoom de l'écran de réception
 
 La position **nominale est affichée « 100 % »** (réglage par défaut, au centre du curseur) ; le curseur va de **70 à 130 %** (± 30 % autour du nominal). Le bouton qui affiche le pourcentage ramène à 100 %.
 
-**Le niveau nominal s'adapte à l'écran** : au chargement et quand la fenêtre change de taille, l'appli mesure la hauteur disponible et choisit la taille d'affichage la plus grande (0,8 au maximum, 0,5 au minimum) qui laisse voir **deux rangées de commandes** sans faire défiler. Sur un grand écran, l'aspect reste celui d'avant ; sur un écran moins haut, tout est un peu plus petit. Le curseur de zoom (70 à 130 %) se règle toujours autour de ce niveau nominal.
+**Le niveau nominal s'adapte à l'écran** : au chargement et quand la fenêtre change de taille, l'appli mesure la hauteur disponible et choisit la taille d'affichage la plus grande (0,72 au maximum, 0,45 au minimum) qui laisse voir **deux rangées de commandes** sans faire défiler. Sur un grand écran, l'aspect reste celui d'avant ; sur un écran moins haut, tout est un peu plus petit. Le curseur de zoom (70 à 130 %) se règle toujours autour de ce niveau nominal.
 
 Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** avec les boutons **−** et **+**. Il agrandit ou réduit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) ; le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
 

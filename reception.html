@@ -512,7 +512,8 @@
 
   // ---------- zoom de tout ce qui est sous la barre du haut (mémorisé) ----------
   const ZNOM = 100, ZMIN = ZNOM - 30, ZMAX = ZNOM + 30;   // position nominale affichée « 100 % », réglage de ± 30 %
-  let ZBASE = 0.8;                                        // facteur réel du niveau nominal « 100 % » : 0,8 au plus, réduit si besoin pour voir 2 rangées
+  const ZB_MAX = 0.72, ZB_MIN = 0.45;                     // facteur réel du niveau nominal « 100 % » : 0,72 au plus (10 % de moins qu'avant), réduit si besoin pour voir 2 rangées
+  let ZBASE = ZB_MAX;
   // Ajuste le niveau nominal à l'écran : on mesure la place disponible et la hauteur des tuiles, et on choisit le plus grand
   // facteur (0,5 à 0,8) qui laisse voir DEUX rangées de commandes sans faire défiler. Calculé au chargement et au changement de taille.
   function fitNominal() {
@@ -524,19 +525,19 @@
       const above = ($("grid").getBoundingClientRect().top + window.scrollY - topbar.offsetHeight) / z;   // place prise au-dessus des tuiles (recherche, onglets…)
       const th = document.querySelector(".tile").getBoundingClientRect().height / z;
       const need = above + 2 * th + 16 + 12;               // hauteur nécessaire (sans zoom) pour 2 rangées + l'écart + une marge
-      let f = Math.floor(Math.min(0.8, (innerHeight - topbar.offsetHeight) / need) * 20) / 20;
-      f = Math.max(0.5, f);
+      let f = Math.floor(Math.min(ZB_MAX, (innerHeight - topbar.offsetHeight) / need) * 100) / 100;
+      f = Math.max(ZB_MIN, f);
       if (Math.abs(f - ZBASE) < 0.001) break;
       ZBASE = f; setZoom(+$("zoom").value);
     }
     // vérification : changer le zoom change le nombre de colonnes, donc la hauteur des tuiles ; on réduit tant que la 2e rangée dépasse
-    for (let k = 0; k < 8 && ZBASE > 0.5; k++) {
+    for (let k = 0; k < 12 && ZBASE > ZB_MIN; k++) {
       const ts = [...document.querySelectorAll(".tile")];
       const tops = [...new Set(ts.map((t) => Math.round(t.getBoundingClientRect().top + window.scrollY)))].sort((x, y) => x - y);
       if (tops.length < 2) break;                            // une seule rangée de tuiles : rien à vérifier
       const bas = Math.max(...ts.filter((t) => Math.round(t.getBoundingClientRect().top + window.scrollY) === tops[1]).map((t) => t.getBoundingClientRect().bottom + window.scrollY));
       if (bas <= innerHeight - 6) break;
-      ZBASE = Math.max(0.5, Math.round((ZBASE - 0.05) * 100) / 100); setZoom(+$("zoom").value);
+      ZBASE = Math.max(ZB_MIN, Math.round((ZBASE - 0.02) * 100) / 100); setZoom(+$("zoom").value);
     }
   }
   function setZoom(v) {
