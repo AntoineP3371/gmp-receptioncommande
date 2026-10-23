@@ -240,23 +240,23 @@
     if (!r) return;
     $("edsheet").innerHTML = `<h2>Modifier la commande</h2><p class="note" style="margin-top:0">${esc(who(r))}<br>Changer l'adresse e-mail change aussi la personne prévenue à l'arrivée.</p>
       <div class="form">
-        <div><label for="p-pre">Prénom</label><input id="p-pre" value="${esc(r.prenom)}" maxlength="60"></div>
-        <div><label for="p-nom">Nom</label><input id="p-nom" value="${esc(r.nom)}" maxlength="60"></div>
-        <div class="full"><label for="p-mail">Adresse e-mail</label><input id="p-mail" type="email" value="${esc(r.email)}" maxlength="120"></div>
-        <div><label for="p-four">Fournisseur</label><input id="p-four" value="${esc(r.fournisseur)}" maxlength="80"></div>
-        <div><label for="p-ref">N° de commande</label><input id="p-ref" value="${esc(r.reference)}" maxlength="80"></div>
-        <div class="full"><label for="p-cont">Contenu</label><input id="p-cont" value="${esc(r.contenu)}" maxlength="200"></div>
-        <div class="full"><label for="p-date">Date de réception prévue</label><input id="p-date" type="date" value="${esc(r.date_prevue)}"></div>
+        <div><label for="ep-pre">Prénom</label><input id="ep-pre" value="${esc(r.prenom)}" maxlength="60"></div>
+        <div><label for="ep-nom">Nom</label><input id="ep-nom" value="${esc(r.nom)}" maxlength="60"></div>
+        <div class="full"><label for="ep-mail">Adresse e-mail</label><input id="ep-mail" type="email" value="${esc(r.email)}" maxlength="120"></div>
+        <div><label for="ep-four">Fournisseur</label><input id="ep-four" value="${esc(r.fournisseur)}" maxlength="80"></div>
+        <div><label for="ep-ref">N° de commande</label><input id="ep-ref" value="${esc(r.reference)}" maxlength="80"></div>
+        <div class="full"><label for="ep-cont">Contenu</label><input id="ep-cont" value="${esc(r.contenu)}" maxlength="200"></div>
+        <div class="full"><label for="ep-date">Date de réception prévue</label><input id="ep-date" type="date" value="${esc(r.date_prevue)}"></div>
       </div>
-      <div class="actions"><button class="btn ghost" id="p-cancel">Fermer</button><button class="btn" id="p-save">💾 Enregistrer</button></div>`;
+      <div class="actions"><button class="btn ghost" id="ep-cancel">Fermer</button><button class="btn" id="ep-save">💾 Enregistrer</button></div>`;
     $("ed").hidden = false;
-    $("p-cancel").onclick = () => { $("ed").hidden = true; };
-    $("p-save").onclick = async () => {
-      const mail = $("p-mail").value.trim().toLowerCase();
+    $("ep-cancel").onclick = () => { $("ed").hidden = true; };
+    $("ep-save").onclick = async () => {
+      const mail = $("ep-mail").value.trim().toLowerCase();
       if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { toast("Adresse e-mail invalide.", "err"); return; }
-      if (!$("p-nom").value.trim() && !$("p-pre").value.trim()) { toast("Indiquez au moins un nom.", "err"); return; }
+      if (!$("ep-nom").value.trim() && !$("ep-pre").value.trim()) { toast("Indiquez au moins un nom.", "err"); return; }
       try {
-        await patchRec(r.id, { prenom: $("p-pre").value.trim(), nom: $("p-nom").value.trim(), email: mail, fournisseur: $("p-four").value.trim() || "Non précisé", reference: $("p-ref").value.trim(), contenu: $("p-cont").value.trim(), date_prevue: $("p-date").value });
+        await patchRec(r.id, { prenom: $("ep-pre").value.trim(), nom: $("ep-nom").value.trim(), email: mail, fournisseur: $("ep-four").value.trim() || "Non précisé", reference: $("ep-ref").value.trim(), contenu: $("ep-cont").value.trim(), date_prevue: $("ep-date").value });
         $("ed").hidden = true; toast("✅ Commande modifiée.", "ok"); load();
       } catch (err) { toast(err.message, "err"); }
     };
