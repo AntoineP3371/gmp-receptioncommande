@@ -11,9 +11,9 @@
 <div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Je réceptionne un colis</h1>
   <div class="zoomctl" title="Zoom de l'affichage">
     <button type="button" id="zmin" aria-label="Réduire">−</button>
-    <input type="range" id="zoom" min="50" max="110" step="5" value="80" list="zticks" aria-label="Zoom"><datalist id="zticks"><option value="80"></option></datalist>
+    <input type="range" id="zoom" min="70" max="130" step="5" value="100" list="zticks" aria-label="Zoom"><datalist id="zticks"><option value="100"></option></datalist>
     <button type="button" id="zplus" aria-label="Agrandir">+</button>
-    <button type="button" id="zval" title="Revenir à la position nominale (80 %)">80 %</button>
+    <button type="button" id="zval" title="Revenir à la position nominale (100 %)">100 %</button>
   </div>
   <a class="back" href="index.html">← Accueil</a></div>
 <div class="wrap recep">
@@ -416,12 +416,13 @@
   Clavier.init({ toggle: $("kbtoggle") });
 
   // ---------- zoom de tout ce qui est sous la barre du haut (mémorisé) ----------
-  const ZNOM = 80, ZMIN = ZNOM - 30, ZMAX = ZNOM + 30;   // position nominale 80 %, réglage de ± 30 points
+  const ZNOM = 100, ZMIN = ZNOM - 30, ZMAX = ZNOM + 30;   // position nominale affichée « 100 % », réglage de ± 30 %
+  const ZBASE = 0.8;                                      // facteur réel de l'affichage nominal (inchangé)
   function setZoom(v) {
     v = Math.max(ZMIN, Math.min(ZMAX, Math.round(v / 5) * 5));
-    document.documentElement.style.setProperty("--z", v / 100);
+    document.documentElement.style.setProperty("--z", v / 100 * ZBASE);
     $("zoom").value = v; $("zval").textContent = v + " %";
-    lsSet("rc_zoom2", v);
+    lsSet("rc_zoom3", v);
     setTopH();
   }
   // hauteur de la barre du haut (la barre de recherche collante se place juste dessous)
@@ -431,7 +432,7 @@
   $("zplus").onclick = () => setZoom(+$("zoom").value + 10);
   $("zval").onclick = () => setZoom(ZNOM);
   window.addEventListener("resize", setTopH);
-  setZoom(+lsGet("rc_zoom2", ZNOM) || ZNOM);
+  setZoom(+lsGet("rc_zoom3", ZNOM) || ZNOM);
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée
 })();

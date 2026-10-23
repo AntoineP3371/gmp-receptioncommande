@@ -77,7 +77,7 @@ Bouton ✏️ sur chaque ligne « Attendue » : prénom, nom, **adresse e-mail**
 
 ## Zoom de l'écran de réception
 
-La position **nominale est 80 %** (réglage par défaut, au centre du curseur) ; le curseur va de **50 à 110 %** (± 30 points autour du nominal). Le pourcentage (ou le bouton qui l'affiche) ramène à 80 %.
+La position **nominale est affichée « 100 % »** (réglage par défaut, au centre du curseur) ; le curseur va de **70 à 130 %** (± 30 % autour du nominal). Le bouton qui affiche le pourcentage ramène à 100 %.
 
 Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** avec les boutons **−** et **+**. Il agrandit ou réduit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) ; le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
 
