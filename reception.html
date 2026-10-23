@@ -11,9 +11,9 @@
 <div class="topbar"><img src="logo.webp" alt="GMP – IUT de Bordeaux"><h1>Je réceptionne un colis</h1>
   <div class="zoomctl" title="Zoom de l'affichage">
     <button type="button" id="zmin" aria-label="Réduire">−</button>
-    <input type="range" id="zoom" min="60" max="160" step="5" value="100" aria-label="Zoom">
+    <input type="range" id="zoom" min="50" max="110" step="5" value="80" list="zticks" aria-label="Zoom"><datalist id="zticks"><option value="80"></option></datalist>
     <button type="button" id="zplus" aria-label="Agrandir">+</button>
-    <button type="button" id="zval" title="Revenir à 100 %">100 %</button>
+    <button type="button" id="zval" title="Revenir à la position nominale (80 %)">80 %</button>
   </div>
   <a class="back" href="index.html">← Accueil</a></div>
 <div class="wrap recep">
@@ -29,6 +29,7 @@
       <button class="tab on" data-tab="attendu">À réceptionner <span id="cA"></span></button>
       <button class="tab" data-tab="recu">Déjà réceptionnés (7 j) <span id="cR"></span></button>
     </div>
+    <div class="hint" id="hint"></div>
     <div class="chips" id="chipsF"></div>
     <div class="chips" id="chipsA"></div>
   </div>
@@ -37,7 +38,7 @@
 
 <div class="selbar" id="selbar" hidden>
   <div><b id="selcount"></b></div>
-  <div style="display:flex;gap:10px"><button class="btn ghost" id="selclear">Tout désélectionner</button><button class="btn" id="selgo">Valider la réception →</button></div>
+  <div style="display:flex;gap:10px"><button class="btn ghost" id="selclear">Annuler la sélection</button><button class="btn" id="selgo">Valider la réception →</button></div>
 </div>
 
 <div class="lightbox" id="lb" hidden><img id="lbimg" alt="Photo de la réception"><span>Toucher pour fermer</span></div>
@@ -52,6 +53,7 @@
   const { api, esc, lsGet, lsSet, fmtDate, nomComplet, toast } = RC;
   const $ = (id) => document.getElementById(id);
   let items = [], tab = "attendu", fFour = "", fLet = "", q = "";
+  let multi = false, longFired = false, lpTimer = null;   // multi : mode sélection multiple (appui long)
   const sel = new Map();           // id -> nb_recus
   let form = null;                 // état de la fenêtre de validation
   let lieux = window.LIEUX || [];   // lieux de dépôt : définis dans l'admin, sinon liste de config.js
@@ -102,7 +104,9 @@
 
     // barre de sélection
     const n = [...sel.keys()].filter((id) => items.some((r) => r.id === id && r.statut === "attendu")).length;
-    $("selbar").hidden = n === 0;
+    $("selbar").hidden = !multi;
+    $("hint").hidden = tab !== "attendu";
+    $("hint").textContent = multi ? "Sélection multiple : touchez les commandes à ajouter, puis validez en bas de l'écran." : "Touchez une commande pour la réceptionner · appui long pour en sélectionner plusieurs.";
     $("selcount").textContent = n + " commande" + (n > 1 ? "s" : "") + " sélectionnée" + (n > 1 ? "s" : "");
   }
 
@@ -130,7 +134,7 @@
         ${photoTag(r)}</div></div>`;
     }
     const on = sel.has(r.id);
-    return `<button class="tile t5 ${on ? "sel" : ""} ${isToday(r) ? "today" : ""} ${isLate(r) ? "late" : ""}" data-id="${esc(r.id)}"><span class="check">${on ? "✓" : ""}</span>
+    return `<button class="tile t5 ${on ? "sel" : ""} ${isToday(r) ? "today" : ""} ${isLate(r) ? "late" : ""}" data-id="${esc(r.id)}">${multi ? `<span class="check">${on ? "✓" : ""}</span>` : ""}
       ${fhead(r.fournisseur)}
       <div class="t5-body"><div class="who">${esc(nomComplet(r))}</div>
       ${r.contenu ? `<div class="what">${esc(r.contenu)}</div>` : ""}
@@ -145,7 +149,7 @@
     }
     const on = sel.has(r.id);
     return `<button class="lrow ${on ? "sel" : ""} ${isToday(r) ? "today" : ""} ${isLate(r) ? "late" : ""}" data-id="${esc(r.id)}"><span class="lf">${fpill(r.fournisseur)}</span><span class="ln">${esc(nomComplet(r))}</span><span class="lc">${esc(r.contenu)}${r.reference ? ` <small>(N° ${esc(r.reference)})</small>` : ""}</span>
-      <span class="lm">${fmtDate(r.created)}${prevTxt(r) ? "<br>" + prevTxt(r) : ""}</span><span class="check">${on ? "✓" : ""}</span></button>`;
+      <span class="lm">${fmtDate(r.created)}${prevTxt(r) ? "<br>" + prevTxt(r) : ""}</span>${multi ? `<span class="check">${on ? "✓" : ""}</span>` : "<span></span>"}</button>`;
   }
 
   // ---------- événements de la liste ----------
@@ -155,19 +159,40 @@
     $("lbimg").src = im.dataset.full; $("lb").hidden = false;
   });
   $("lb").onclick = () => { $("lb").hidden = true; $("lbimg").removeAttribute("src"); };
+  // appui long (0,55 s) sur une commande attendue : passe en sélection multiple (des cases à cocher apparaissent)
+  const lpCancel = () => { clearTimeout(lpTimer); lpTimer = null; };
+  $("grid").addEventListener("pointerdown", (e) => {
+    if (multi || tab !== "attendu") return;
+    const t = e.target.closest("[data-id]"); if (!t) return;
+    lpCancel(); const id = t.dataset.id;
+    lpTimer = setTimeout(() => {
+      lpTimer = null; longFired = true; multi = true; sel.clear(); sel.set(id, 1); render();
+      try { if (navigator.vibrate) navigator.vibrate(30); } catch (err) { /* sans vibration */ }
+    }, 550);
+  });
+  $("grid").addEventListener("pointermove", (e) => { if (lpTimer && (Math.abs(e.movementX) > 6 || Math.abs(e.movementY) > 6)) lpCancel(); });   // le doigt fait défiler : pas un appui long
+  ["pointerup", "pointercancel"].forEach((ev) => document.addEventListener(ev, () => { lpCancel(); setTimeout(() => { longFired = false; }, 350); }));
+  $("grid").addEventListener("contextmenu", (e) => e.preventDefault());
   $("grid").onclick = (e) => {
+    if (longFired) { longFired = false; return; }       // le clic qui suit un appui long est ignoré
     const t = e.target.closest("[data-id]"); if (!t) return;
     const id = t.dataset.id;
-    if (sel.has(id)) sel.delete(id); else sel.set(id, 1);
-    render();
+    if (multi) {                                         // sélection multiple : on coche / décoche
+      if (sel.has(id)) sel.delete(id); else sel.set(id, 1);
+      if (!sel.size) multi = false;
+      render(); return;
+    }
+    sel.clear(); sel.set(id, 1);                          // appui simple : on passe directement à la réception
+    openForm();
+    if (form) form.single = true;
   };
   $("chipsF").onclick = (e) => { const b = e.target.closest("[data-four]"); if (b) { fFour = fFour === b.dataset.four ? "" : b.dataset.four; render(); } };
   $("chipsA").onclick = (e) => { const b = e.target.closest("[data-let]"); if (b) { fLet = fLet === b.dataset.let ? "" : b.dataset.let; render(); } };
-  document.querySelector(".tabs").onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) { tab = b.dataset.tab; render(); } };
+  document.querySelector(".tabs").onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) { tab = b.dataset.tab; multi = false; sel.clear(); render(); } };
   $("q").oninput = () => { q = $("q").value; render(); };
   $("clear").onclick = () => { q = ""; fFour = ""; fLet = ""; $("q").value = ""; render(); };
   $("viewtoggle").onclick = () => { vue = vue === "liste" ? "tuiles" : "liste"; lsSet("rc_vue", vue); render(); };
-  $("selclear").onclick = () => { sel.clear(); render(); };
+  $("selclear").onclick = () => { sel.clear(); multi = false; render(); };
   $("selgo").onclick = openForm;
 
   // ---------- fenêtre de validation ----------
@@ -240,6 +265,7 @@
       sel.set(r.id, Math.max(1, Math.min(99, sel.get(r.id) + (d.inc ? 1 : -1))));
     }
     else if (b.id === "fcancel" || b.id === "fclose") {
+      if (form.single) sel.clear();   // réception ouverte d'un appui simple : rien n'reste sélectionné
       if (form.walkinId) {   // saisie d'un colis non déclaré abandonnée : on retire la fiche créée
         try { await api.walkinDiscard({ id: form.walkinId }); } catch (err) { /* sans importance */ }
         items = items.filter((r) => r.id !== form.walkinId); sel.delete(form.walkinId);
@@ -266,6 +292,7 @@
       });
       const ko = res.results.filter((r) => r.error);
       form.picked.forEach((r) => sel.delete(r.id));
+      multi = false;
       if (ko.length) toast(ko.length + " commande(s) non traitée(s) : " + ko[0].error, "err");
       await load();
       if (res.lot) step2(res.lot); else { $("ov").hidden = true; form = null; }
@@ -389,12 +416,12 @@
   Clavier.init({ toggle: $("kbtoggle") });
 
   // ---------- zoom de tout ce qui est sous la barre du haut (mémorisé) ----------
-  const ZMIN = 60, ZMAX = 160;
+  const ZNOM = 80, ZMIN = ZNOM - 30, ZMAX = ZNOM + 30;   // position nominale 80 %, réglage de ± 30 points
   function setZoom(v) {
     v = Math.max(ZMIN, Math.min(ZMAX, Math.round(v / 5) * 5));
     document.documentElement.style.setProperty("--z", v / 100);
     $("zoom").value = v; $("zval").textContent = v + " %";
-    lsSet("rc_zoom", v);
+    lsSet("rc_zoom2", v);
     setTopH();
   }
   // hauteur de la barre du haut (la barre de recherche collante se place juste dessous)
@@ -402,9 +429,9 @@
   $("zoom").oninput = () => setZoom(+$("zoom").value);
   $("zmin").onclick = () => setZoom(+$("zoom").value - 10);
   $("zplus").onclick = () => setZoom(+$("zoom").value + 10);
-  $("zval").onclick = () => setZoom(100);
+  $("zval").onclick = () => setZoom(ZNOM);
   window.addEventListener("resize", setTopH);
-  setZoom(+lsGet("rc_zoom", 100) || 100);
+  setZoom(+lsGet("rc_zoom2", ZNOM) || ZNOM);
   load();
   setInterval(() => { if (!form && $("ov").hidden) load(); }, 30000);   // rafraîchit si une nouvelle commande est déclarée
 })();

@@ -69,9 +69,17 @@ Bouton ✏️ sur chaque ligne « Attendue » : prénom, nom, **adresse e-mail**
 
 - Cette version ajoute la migration `1791000006_non_declare.js` : **redémarrer PocketBase** après la mise à jour (`sudo systemctl restart pocketbase-colis`).
 
+## Réceptionner une ou plusieurs commandes (écran tactile)
+
+- **Un appui** sur une commande ouvre directement la fenêtre de réception (colis reçus, état, lieu, opérateur…) : plus besoin de cocher puis de valider.
+- **Un appui long** (environ une demi-seconde) sur une commande lance la **sélection multiple** : des **cases à cocher** apparaissent sur toutes les commandes, on touche celles à ajouter, puis **Valider la réception →** en bas. **Annuler la sélection** (ou décocher la dernière commande) revient au mode normal.
+- Un appui long marche aussi en vue liste.
+
 ## Zoom de l'écran de réception
 
-Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** (60 à 160 %) avec les boutons **−** et **+** ; toucher le pourcentage revient à 100 %. Il agrandit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) et le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
+La position **nominale est 80 %** (réglage par défaut, au centre du curseur) ; le curseur va de **50 à 110 %** (± 30 points autour du nominal). Le pourcentage (ou le bouton qui l'affiche) ramène à 80 %.
+
+Dans la barre du haut de `reception.html`, à côté du titre : un **curseur de zoom** avec les boutons **−** et **+**. Il agrandit ou réduit tout ce qui est sous la barre (tuiles, filtres, fenêtres de validation) ; le réglage est mémorisé sur le poste. La barre du haut reste fixe en haut de l'écran.
 
 ## Lieux de dépôt (admin)
 
